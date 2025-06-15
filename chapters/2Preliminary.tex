@@ -1,0 +1,108 @@
+\chapter{Preliminary Analysis}\label{chapter:preliminary}
+% \setcounter{page}{0}
+% \pagenumbering{arabic}
+
+\section{Benchmark Model}
+% Describe the existing MN backtesting system and its limitations.
+1. how the venues give historical data
+2. the current filling possibility model to represent different scenarios in the market
+
+\section{Data Analysis}
+This section presents the data sources, data fetching method, initial description of the raw data, as well as data analysis and visualization methods. The dataset includes both limit order book data and trade book data from 10:00:00 to 15:59:59 on 31st January. The timestamps in the order book are recorded in London time, while those in the trade book are American time. To ensure orders in order book are consistent with trades in trade book, both of them are converted to Central European Time(CET). The selected time range for order is from 09:00:00 to 14:59:59 GMT, and for trade book, it's from 04:00:00 to 09:59:59 EST. As a result, both them represent for trading time between 10:00:00 and 15:59:59 CET.
+
+\subsection{Data Source and Types}
+The order book dataset consists of foreign exchange (FX) limit order book data provided by LMAX and CBOE, two venues used by MN. Orders from LMAX is more transparent because LMAX is optimized for order-driven market model, while there are more latent orders in CBOE because of the support for anonymous trading. 
+
+As can be seen in Table~\ref{tb: order book data description}, the currency type is EUR/USD. The data is detailed in bid/ask prices and volumes at 5 levels in total, where the data of level 1 stand for the best bid/ask. The dataset also calculates the spread between best ask and best bid prices.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Column} & \textbf{Description} & \textbf{Data Type} \\
+        \midrule
+        ID & Unique identifier of orders & String \\
+        $T$ & Time of the snapshot in HH:MM.S format & String \\
+        VENUE & The exchange (LMAX or CBOE) & String \\
+        SYMBOL & Currency pair (EUR/USD) & Datetime \\
+        $V_A$ & Total volume on the ask side & Integer \\
+        $V_B$ & Total volume on the bid side & Integer \\
+        $P_A ^ {i}$, $i = 1, \dots, 5$ & Ask prices at different levels & Float \\
+        $V_A ^ {i}$, $i = 1, \dots, 5$ & Corresponding volumes at each ask level & Integer \\
+        $P_B ^ {i}$, $i = 1, \dots, 5$ & Bid prices at different levels & Float \\
+        $V_B ^ {i}$, $i = 1, \dots, 5$ & Corresponding volumes at each bid level & Integer \\
+        $S$ & Difference between best ask and bid (S = $P_A ^ {1}$ - $P_B ^ {1}$) & Float \\
+        \bottomrule
+    \end{tabular} 
+    \caption{Order Book Data Description}
+    \label{tb: order book data description}
+\end{table}
+
+All the order book data is stored in Snowflake, a cloud-based data platform that provides data storage, processing, and analytics as a fully managed service. High-frequency order book data can be accessed using SQL queries, which ensures high availability and completeness of data.
+
+Unlike the limit order book data, the trade book data only contains trades executed on the CBOE. In the Table~\ref{tb: trade book data description}, it provides information of trade price, volume, execution time, and order direction. Since CBOE supports anonymous trading, the trade book may contain hidden order executions that are not visible in the limit order book updates.
+
+\begin{table}[h] 
+    \centering 
+    \begin{tabular}{lll} 
+        \toprule 
+        \textbf{Column} & \textbf{Description} & \textbf{Data Type} \\ 
+        \midrule 
+        $T$ & Execution time of the trade (HH:MM:SS) & String \\
+        DIRECTION & Bid order or ask order & String \\
+        PRICE & Execution price of the trade & Float \\ 
+        VOLUME & Number of units traded & Integer \\  
+        \bottomrule 
+    \end{tabular} 
+    \caption{Trade Book Data Description}
+    \label{tb: trade book data description}  
+\end{table}
+
+\subsection{Matching Trade Book and Order Book Data}
+In an order-driven market, trades occur when incoming orders match existing orders in the order book. In the \gls{lob}, 'bid' represents buy interest, and 'ask' represents sell interest. When a trade is recorded in the trade book, it has a direction. If the direction is 'Bid', it means the buyer placed an order that matched an existing ask order in the order book. In this case, the trade price corresponds to the ask price available in the order book at the time of execution, and the volume of the matched ask order decreases by the traded amount. If the direction is 'Ask', it means the seller placed an order that matched an existing bid order in the order book. The trade price in this case corresponds to the bid price available in the order book, and the volume of the matched bid order decreases by the traded amount. The order book is updated after each trade to reflect the reduced volume of the matched order. If an order in the order book is fully consumed, it is removed. If there is remaining volume after a partial match, the order stays in the book with the updated volume. 
+
+An algorithm is developed to find roots of trade book updates in the order book data. This is an important preliminary to see how orders in the order book get filled, which is important in back testing. Also, it's clear to see how many unmatching orders in the order book are. The algorithm for matching orders and trades is in Algorithm~\ref{alg:trade_order_matching}.
+
+\begin{algorithm}
+    \caption{Matching Trade Book and Order Book Data}
+    \label{alg:trade_order_matching}
+    \begin{algorithmic}[1]
+        \State Load trade book (timestamp, price, volume, direction)
+        \State Load order book (timestamp, price levels, volumes)
+        \State Filter data for CBOE venue and set time range
+        \State Convert timestamps to datetime format
+        \State Transform order book to long format (one row per price level)
+        \State Merge and sort trade book and order book by timestamp
+    
+        \For {each trade}
+            \State Find earlier matching limit orders
+            \If {no matching order exists}
+                \State Mark as hidden order
+            \Else
+                \State Check if buy trade matches ask or sell trade matches bid
+                \State Record matched price level and traded volume for updates in trade book
+                \State Record filling time and traded volume for updates in order book
+            \EndIf
+        \EndFor
+    
+        \State Define visible orders: trades that match existing limit orders
+        \State Define hidden orders: trades with no matching limit order
+        \State Define aggressive orders: visible trades not at best bid/ask
+        \State Define passive orders: visible trades at best bid/ask
+    
+    \end{algorithmic}
+\end{algorithm}
+
+It starts by loading and filtering data, selecting only CBOE data within a defined time range for consistency. To identify matching trades, the algorithm checks whether each trade price appears in the five bid/ask levels of the order book. Since order book data stores prices and volumes separately, it is melted into a long format, aligning price levels with corresponding volumes. Then the trade book and order book are then merged into a complete order-trade dataset to accelerate direct comparison.
+
+For each trade, the codes find previous orders in the order book, and check if price and direction match. The bid in the trade book should match the ask in the order book, the ask in the trade book should match the bid in the order book. As the result, If a trade matches an order, it's a visible execution. But if the matching price level is not the best bid or ask, it's identified as a passive submission getting filled by either market movements or aggressive market order. Further classification about these two scenarios will be done later in the chapter 4. If a trade can't find its root in the order book, it's hidden orders, but we don't really care about this part.
+
+As can be seen in the pie chart \ref{fig:p_of_AT_unma}, hidden trades only account for 3.5\%. Most trades are visible, which shows the high data quality from CBOE. Passive submission and neutral submission are both visible trades which we can find in the order book. Half of them are rooted as passive submission, which shows half traders are willing to queue in the order book flow and either wait for market movements or being chosen by aggressive traders. Half of the filling orders are placed in best bid/ask, meaning they prefer to be on top to get filled. This aligns with our trading strategies because most of our orders are placed passively or neutrally. We need to do market simulation to predict how these orders get filled in the order flow. The second pie chart in Figure~\ref{fig:p_of_AT_unma} also shows a common sense that 99\% of the orders in the order book can't find their right trade and end in cancellation \citep{gould2013limitorderbooks}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{figures/percentage_of_AT_unmatch.png}
+    \caption{Percentage of Passive and Neutral Orders getting filled in the Trade Book and Orders Filled vs. Unmatched in the Order Book}
+    \label{fig:p_of_AT_unma}
+\end{figure}
+
