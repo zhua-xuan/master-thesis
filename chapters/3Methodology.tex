@@ -430,73 +430,156 @@ We use a neural Hawkes process to improve this traditional model. Instead of usi
 
 
 % why integrate hidden states instead of traditional HP
-By formulating a neural kernel from GRU-based RNNs, the model extends traditional Hawkes process which uses a fixed parametric form for the intensity function. The idea of predicting aggressive trades based on the structure of a GRU-Hawkes process is new and novel.
+The neural Hawkes model extends traditional Hawkes process which uses a fixed parametric form for the intensity function. Traditional Hawkes processes use simple exponential kernels model the event intensity function. However, in real markets, especially in high-frequency trading, these patterns can be much more complex and change over time. By using hidden states from a GRU-based RNN, we let the model learn a flexible and feature-driven representation of market dynamics, which is new and novel. The GRU encodes recent history, including both the timing and features of past events, into a hidden state. This hidden state is then used to compute the event intensity $\lambda(t)$ in the Hawkes model. In this way, the influence of past events is no longer predefined, but instead learned directly from the data. Integrating GRU hidden states with the Hawkes process turns the model into a neural version, called a neural Hawkes process. In our case, this gives the model the ability to adapt to irregular and complex trade patterns, while still keeping the time-based prediction structure of Hawkes models. This makes it more suitable for FX markets, where trade behavior can change quickly and does not always follow simple rules but latent status.
 
 
 % how hidden states and trade aware are used in math formula
-A key innovation in our approach is the hidden state integration and trade-aware intensity adjustment. We multiple the GRU hidden state $h_t$ to initial intensity formula. This helps capture these invisible market conditions that traditional Hawkes cannot see but that critically affect event intensity. Moreover, we add an additional term to the intensity function: if one of our own trades occurs within certain milliseconds of a candidate time $t$, we increase the intensity $\lambda(t)$ by a small boost $\delta$. This reflects the idea that our own trading activity may affect the likelihood of surrounding market behavior. The adjusted conditional intensity function is given by:
+A key innovation in our approach is the hidden state integration and trade-aware intensity adjustment. In the following part of this section, we explain the mathematical interpretation of intensity function in our neural Hawkes process. We first use the GRU hidden state $h_t$ to adjust the intensity. This allows the model to include latent market conditions that traditional Hawkes process cannot detect, but which may critically strongly influence the intensity of a new event. Moreover, we add another term to the intensity function: if one of our own trades occurs within a short time window near time $t$, we increase the intensity $\lambda(t)$ by a small boost $\delta$. This reflects the idea that our own trading activity may increase the chance of other events happening soon after. The adjusted conditional intensity function is given by:
 
 \begin{equation}
-\lambda_k(t) = (\mu_k + \sum_{j=1}^{K} \sum_{t_i^j < t} \alpha_{kj} e^{-\beta_{kj}(t - t_i^j)}) \times \log(1+e^{h_k(t)}) + \delta \cdot \mathbf{1}_{\{\exists \tau \in \mathcal{T}_{\text{own}},\ |t - \tau| \leq \Delta \}}
+    \lambda_k(t) = (\mu_k + \sum_{j=1}^{K} \sum_{t'_j=T}^{t-1} \alpha_{kj} e^{-\beta_{kj}(t - t'_j)}) \times \log(1+e^{h_k(t)}) + \delta \cdot \mathbf{1}_{\{\exists \tau \in \mathcal{T}_{\text{own}},\ |t - \tau| \leq \Delta \}}
+    \label{eq:intensity}
 \end{equation}
 
-Where $\mu_k$ is the baseline intensity, $\alpha$ controls excitation (how much one event influences others), $\beta$ is the decay rate, $t_i^j$ are past event times. $h_k(t)$ is the hidden states from GRU. The last term adds influence from our own trades.
+\begin{equation}
+    \log \mathcal{L} = \sum_{i=1}^{N} \log \lambda_{t_i}^{k_i} - \sum_{k=1}^{K} \int_{0}^{T} \lambda_t^{k} \, dt
+    \label{eq:log_likelihood_hawkes}
+\end{equation}
 
-Once the intensity function is fitted, we simulate predicted aggressive trade times using Ogata's thinning algorithm. This method samples from a Poisson process with an upper-bound rate, then accepts each sample with probability proportional to the true intensity $\lambda(t)$.
+In Equation~\ref{eq:intensity}, $\lambda_k(t)$ is the intensity of event $k$ at time $t$. The term $\mu_k$ is the baseline intensity, which stays constant for that event type across all time. The parameters $\alpha_{kj}$ and $\beta_{kj}$ control the influence of past events: $\alpha_{kj}$ measures how much an event of type $j$ excites the occurrence of type $k$, and $\beta_{kj}$ is the decay rate that reduces this influence over time. $K$ is the total set of events. The sum over $t'_j$ from fixed time $T$ up to time $t-1$ means we are considering a certain length of the past events history before time t. We assume that only one event can happen at each timestamp, so there is no overlap. The first part $(\mu_k + \sum_{j=1}^{K} \sum_{t'_j=T}^{t-1} \alpha_{kj} e^{-\beta_{kj}(t - t'_j)})$ is the same structure as the traditional Hawkes process. It gives the intensity based on a decaying memory of past events. 
+
+However, we extend this with two additional terms. The first is a neural modulation term \( \log(1 + e^{h_k(t)}) \), where \( h_k(t) \) is the hidden state from the GRU. This component allows the intensity to be adjusted based on recent market signals learned from sequential patterns. The second is a spike term $\delta$. If one of our own trades occurred within a small time window \( \Delta \) around time \( t \), we increase the intensity by a fixed boost \( \delta \). This term reflects the idea that our own trading activity may influence the short-term behavior of the market.
+
+In Equation~\ref{eq:log_likelihood_hawkes}, \( \log \mathcal{L} \) is the log-likelihood function of our model. The first term sums the log intensity values at all observed event times \( t_i \), for their corresponding event types \( k_i \). $N$ is the total number of observed events in the time interval \([0, T]\). $t_i$ is the timestamp of the $i$-th observed event. These are the times at which events occur, such that $0<t_1<t_2<...<t_i<...<T$.
+The second term subtracts the integral of the intensity function over the full time period \([0, T]\) for all event types. The combination of the two terms ensures that the model explains observed events well without overestimating event frequency in general. It is worth to note that the integral $\int_{0}^{T} \lambda_t^{k} \, dt$ is part of the exact log-likelihood in this continuous-time setting. It measures the total 'expected number of events' over time and penalizes models that expect too many events between actual ones.
+
 
 % how I use it
-We represent trade types using a one-hot encoded vector:
-Due to the high computational cost of fitting Hawkes models on large-scale data, we only apply it to the filtered, lightweight dataset produced by GRU anomaly filter. This improves feasibility, reduces noise, and keeps precision.
+In our own implementation, we model each trade event using a one-hot encoded vector to distinguish between aggressive and non-aggressive trades. Specifically, we define the event types as:
 \begin{center}
 \begin{tabular}{lll}
-(1, 0) & : & No trade or Passive trade \\
+(1, 0) & : & Non-aggressive trade \\
 (0, 1) & : & Aggressive trade \\
 \end{tabular}
 \end{center}
-This clearly distinguishes trading behavior at each timestamp. The passive trades are combined with no-trade events because they are not our prediction target.
+This encoding provides a clear way to display the type of trading behavior at each timestamp. Passive trades are grouped with no-trade events because we are only interested in predicting aggressive trades.
+
+We define the number of event types with the variable \texttt{n\_dims=2}, and initialize the key parameters of the neural Hawkes process as follows:
+
+\begin{itemize}
+    \item \( \mu_k = 0.1 \): the baseline intensity for each type.
+    \item \( \alpha_{kj} = 0.2 \): the excitation parameter measuring how much a type-\( j \) event influences the likelihood of a future type-\( k \) event.
+    \item \( \beta_{kj} = 1.0 \): the decay rate that controls how fast the influence of past events fades over time.
+\end{itemize}
+
+We choose to include the 50 most recent events before each time step to strike a balance between capturing sufficient historical influence and maintaining computational efficiency. This window size is also consistent with the memory length encoded by the GRU hidden states used in our neural intensity modulation. For training, we minimize the negative log-likelihood defined in Equation~\ref{eq:log_likelihood_hawkes}. We use the L-BFGS-B optimization method, which is well suited for problems with parameter bounds. This procedure also respects positivity and numerical stability constraints of the intensity function because in Equation~\ref{eq:intensity} $\mu$ and $\alpha$ are all positive, and no other terms contribute any negative value.
+
+% Ogata's thinning algorithm
+Once the intensity function \( \lambda(t) \) is fitted, we decide aggressive trade patterns using \textbf{Ogata's thinning algorithm}. This method allows us to sample event times from a continuous-time multivariate point process by checking whether each proposed event fits the modeled intensity. At each candidate time \( t \), we follow these steps:
+
+\begin{enumerate}
+    \item We compute the GRU hidden state \( h(t) \) and use it, along with past events, to calculate the conditional intensity vector \( \boldsymbol{\lambda}(t) \in \mathbb{R}^K \), where \( K \) is the number of event types.
+    
+    \item We define an upper-bound intensity \( \lambda_{\text{max}} \) for thinning. If no events have occurred yet, we set \( \lambda_{\text{max}} = \sum_{k=1}^{K} \mu_k \). Otherwise, we use \( \lambda_{\text{max}} = \sum_{k=1}^{K} \lambda_k(t) \), based on current computed intensities.
+
+    \item A candidate time \( t \) is accepted if a random number \( u \sim \text{Uniform}(0,1) \) satisfies:
+    \[
+    u < \frac{\sum_{k=1}^{K} \lambda_k(t)}{\lambda_{\text{max}}}
+    \]
+    
+    \item If accepted, the event type is sampled from a categorical distribution proportional to the individual intensities:
+    \[
+    p_k = \frac{\lambda_k(t)}{\sum_{j=1}^{K} \lambda_j(t)}
+    \]
+    where \( p_k \) is the probability of sampling event type \( k \) at time \( t \).
+
+    \item The resulting event \( (t, \text{type}, h(t)) \) is recorded for future simulation steps.
+\end{enumerate}
+This ensures that the resulting sample reflects the target intensity function \( \lambda(t) \). As noted by \citet{magris2019simulationhawkesprocesslambertw}, Ogata's modified thinning algorithm remains one of the most efficient and widely adopted techniques for simulating self-exciting point processes.
+
+The input-output workflow of this process can be summarized as follows:
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=2cm]
+    \tikzstyle{block} = [rectangle, draw, text width=9em, align=center, rounded corners, minimum height=3em]
+    \tikzstyle{arrow} = [thick,->,>=stealth]
+    \node (onehot) [block] {One-Hot Encoded\\ Trade Type};
+    \node (estimate) [block, below of=onehot] {Parameter Estimation\\ (via Neural Kernel and Log-Likelihood)};
+    \node (predict) [block, below of=estimate] {Intensity Prediction\\ on Given Timestamps};
+    \node (output) [block, below of=predict] {Final Predicted\\ Aggressive Trade Pattern};
+
+    \draw [arrow] (onehot) -- (estimate);
+    \draw [arrow] (estimate) -- (predict);
+    \draw [arrow] (predict) -- (output);
+
+\end{tikzpicture}
+\caption{Input-output flow of the Neural Hawkes Process.}
+\label{fig:neural-hawkes-flow}
+\end{figure}
 
 % why it's more interpreable
-This modeling approach allows us to preserve more realistic and interpretable signals for aggressive trade detection. Higher intensity in the aggressive trade dimension implies higher probability of retaining that point as a simulated aggressive trade. It complements the previous stages by capturing both temporal clustering and the effect of our own executions.
+It is important to note that this modeling approach gives interpretable results, which is essential for real-world applications like MN's FX backtesting system. Unlike black-box models, where it is difficult to explain why a prediction is made, the Hawkes process provides an explicit intensity function that describes the probability of aggressive trades over time. A higher intensity in the aggressive trade dimension directly corresponds to a higher likelihood of predicting such a trade. This makes it easier to explain the model's behavior to traders or portfolio managers. Instead of saying 'the machine decided', we can point to specific factors like recent market activity, hidden states learned from GRU, or our own past executions that contributed to the increased intensity. The model not only captures temporal clustering, but also integrates latent market conditions and the effect of our own executions.
 
 
-\section{Whole Framework}
+% \section{Whole Framework}
 
 
 \section{Evaluation Metrics}
+This section introduces the metrics used to evaluate how well the predicted aggressive trades resemble the actual ones in the market. Traditional classification metrics, such as precision and recall, assume that each predicted event must match one true event exactly. However, in our case, we care more about the temporal patterns and distributional behavior of events. For this reason, we include other metrics that can measure similarity in terms of clustering, alignment, and statistical distribution.
 
-\subsection{Data Performance}
-% filter ratio, Class Distribution
+As shown in Table~\ref{tb:Evaluation Metrics}, we organize the evaluation into five categories: classification-based metrics, temporal alignment metrics, clustering metrics, autocorrelation, distributional statistical tests.
 
-\subsection{Confusion Matrix}
-% TP, TN, FP, FN
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Category} & \textbf{Metric} & \textbf{Purpose} \\
+\hline
+Classification & Confusion Matrix & Pointwise event match \\
+Classification & Precision, Recall, F1-score & Basic prediction quality \\
+Temporal Alignment & DTW & Flexible pattern alignment \\
+Temporal Alignment & Wasserstein Distance & Distributional shift in timing \\
+Temporal Alignment & Fréchet Distance & Curve shape similarity \\
+Clustering & Allan Factor & Burstiness and overdispersion \\
+Clustering & Event Counts & Count variation in time bins \\
+Clustering & Ripley's K Function & Multi-scale clustering test \\
+Autocorrelation & Autocorrelation Analysis & Memory and repeated patterns \\
+Distributional Test & KS Test & Statistical distribution equality \\
+Distributional Test & KL Divergence & Information loss in distributions \\
+\hline
+\end{tabular}
+\caption{Summary of Evaluation Metrics}\label{tb:Evaluation Metrics}
+\end{table}
 
-\subsection{Classification Report}
-% Precision, recall, F1-score, Relaxed Metrics
+\subsection{Classification-based Metrics}
+The confusion matrix shows the number of correctly and incorrectly predicted events. It includes true positives (TP), false positives (FP), true negatives (TN), and false negatives (FN). TP are cases where the model correctly predicts an aggressive event, meaning both the actual and predicted values are one. FP occur when the model predicts an aggressive event, but no actual event happens. TN are when the model correctly predicts non-aggressive trades, with both actual and predicted values being zero. FN happen when an actual aggressive event occurs, but the model fails to detect it, resulting in a missed event. These values help measure how many real events were captured and how many predictions were wrong.
+
+Based on the confusion matrix, we calculate precision, recall, and F1-score. Precision is the proportion of correct predictions out of all predicted events. Recall is the proportion of actual events that were correctly predicted. F1-score is the harmonic mean of precision and recall. However, in our case, these values are not very meaningful because aggressive events are rare and exact matches are unlikely. Still, we include them for completeness.
+
+\subsection{Temporal Alignment Metrics}
+Temporal alignment metrics evaluate how well the predicted aggressive trade sequence follows the timing and rhythm of the actual sequence. These metrics are useful when the goal is to match general behavior.
+
+Dynamic Time Warping (DTW) is a technique that allows flexible alignment between two sequences by warping the time axis, making it suitable for comparing patterns that may not align perfectly in time \citep{muller2007dtw}. 
+
+Wasserstein Distance, also known as Earth Mover's Distance, measures how much 'effort' is needed to move one event timing distribution into another. It is useful for comparing the overall position and spread of events.
+
+Fréchet Distance measures the similarity between two event trajectories, considering the order and path taken by events. It focuses more on the global shape than local alignment.
+
+Together, these three metrics provide a more complete evaluation of temporal similarity. DTW captures local flexibility and pattern alignment, Wasserstein Distance reflects distributional shift in timing, and Fréchet Distance focuses on overall shape.
+
+\subsection{Clustering Metrics}
+Clustering metrics test whether events happen close together in time, which is a common behavior in financial markets, especially for trader behaviors.
+
+The Allan Factor measures how much the event counts vary in fixed time windows. Values close to one suggest random behavior, while higher values indicate clustering. Event Counts per Fixed Window analyze how many events happen in each time bin (e.g., 1 second, 5 seconds). Ripley's K Function is used to check clustering at multiple time scales. If the K value is higher than expected under randomness, then clustering is present.
+
+Each of these metrics captures clustering from a different perspective. The Allan Factor focuses on overdispersion in event counts over time, Event Counts per Fixed Window provide direct insight into local density, and Ripley's K Function examines clustering across multiple time scales. Using all three allows us to evaluate both short-term and long-term clustering behavior, making the analysis more reliable than using any single metric alone.
+
+\subsection{Autocorrelation Metrics}
+Autocorrelation metrics check whether events are dependent on previous events. In market microstructure, it is common to see memory or self-excitation in order flows. Autocorrelation Analysis measures the correlation between an event and its past values. If the correlation is significant at short lags, it suggests that events are not independent.
+
+\subsection{Distributional Statistical Tests}
+These tests compare the statistical properties of predicted and actual events. The Kolmogorov-Smirnov (KS) Test compares the cumulative distributions of inter-arrival times. A high p-value means there is no significant difference between the two. Kullback-Leibler Divergence (KL) measures how much information is lost when one distribution is used to represent another. Lower values mean the two distributions are more similar.
+
+While the KS Test provides a formal statistical test for distributional similarity, KL Divergence offers a continuous measure of how much the distributions differ in shape and information. By combining both, we can assess distributional similarity, which leads to a more balanced evaluation than relying on either one alone.
 
 
-
-
-
-
-% \subsection{Two-stage Generative Adversarial Network}
-% To generate realistic synthetic time series, we adopt a two-stage generative adversarial network (GAN). The model consists of two interconnected components: the first WGAN, denoted as \( G_1 \), maps random latent vectors \( z \sim \mathcal{N}(0, I) \) into synthetic spectrogram images \( G_1(z) \), capturing the global frequency-domain structure. The second conditional WGAN, denoted as \( G_2 \), takes these spectrograms as input and generates corresponding time series \( G_2(G_1(z)) \). Both stages are trained by minimizing the Wasserstein loss with gradient penalty:
-
-% \begin{equation}
-% \mathcal{L}_{\text{WGAN-GP}} = \mathbb{E}_{x \sim P_r}[D(x)] - \mathbb{E}_{\tilde{x} \sim P_g}[D(\tilde{x})] + \lambda \mathbb{E}_{\hat{x} \sim P_{\hat{x}}}\left[\left(\|\nabla_{\hat{x}} D(\hat{x})\|_2 - 1\right)^2\right],
-% \end{equation}
-
-% where \( D \) is the critic, \( P_r \) is the real data distribution, \( P_g \) is the generated data distribution, and \( P_{\hat{x}} \) is the distribution of interpolated samples. The use of spectrograms as intermediate representations enables the first generator to capture rich latent patterns over multiple time scales, while the second generator focuses on reconstructing realistic temporal dynamics.
-
-% It's useful when data has complex multi-scale patterns and very little data (few-shot).
-
-
-% \subsection{Time-Conditional Generative Adversarial Network}
-% The Time-Conditional Generative Adversarial Network (T-CGAN) consists of a generator \( G \) and a discriminator \( D \), both conditioned explicitly on timestamp sequences. Given a noise vector \( z \sim p_z(z) \) and a timestamp vector \( t \sim p_T(t) \), the generator \( G(z|t) \) produces synthetic time series aligned with the conditional timestamps, while the discriminator \( D(x|t) \) evaluates whether a given time series \( x \) conditioned on \( t \) is real or generated. The training objective follows a conditional GAN formulation:
-
-% \begin{equation}
-% \min_{G} \max_{D} V(D,G) = \mathbb{E}_{x \sim p_{\text{data}}(x)} \left[\log D(x|t)\right] + \mathbb{E}_{z \sim p_z(z)} \left[\log(1 - D(G(z|t)))\right],
-% \end{equation}
-
-% where \( p_{\text{data}}(x) \) represents the real data distribution. The generator is implemented as a convolutional neural network (CNN) with deconvolution layers, while the discriminator uses convolutional layers with max pooling. By conditioning both the generator and discriminator on timestamps, T-CGAN learns the relationship between temporal irregularities and data values, allowing realistic augmentation of short, noisy, and unevenly sampled sequences. This design is particularly suited for scenarios where irregular sampling and small data availability hinder traditional time series modeling approaches.
-
-% It's useful when we want to preserve sampling irregularity in generated data.
