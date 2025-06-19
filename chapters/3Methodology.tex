@@ -527,7 +527,7 @@ It is important to note that this modeling approach gives interpretable results,
 \section{Evaluation Metrics}
 This section introduces the metrics used to evaluate how well the predicted aggressive trades resemble the actual ones in the market. Traditional classification metrics, such as precision and recall, assume that each predicted event must match one true event exactly. However, in our case, we care more about the temporal patterns and distributional behavior of events. For this reason, we include other metrics that can measure similarity in terms of clustering, alignment, and statistical distribution.
 
-As shown in Table~\ref{tb:Evaluation Metrics}, we organize the evaluation into five categories: classification-based metrics, temporal alignment metrics, clustering metrics, autocorrelation, distributional statistical tests.
+As shown in Table~\ref{tb:Evaluation Metrics}, we organize the evaluation into five categories: classification-based metrics, temporal dependency metrics, clustering metrics, autocorrelation, distributional statistical tests.
 
 \begin{table}[h]
 \centering
@@ -537,9 +537,9 @@ As shown in Table~\ref{tb:Evaluation Metrics}, we organize the evaluation into f
 \hline
 Classification & Confusion Matrix & Pointwise event match \\
 Classification & Precision, Recall, F1-score & Basic prediction quality \\
-Temporal Alignment & DTW & Flexible pattern alignment \\
-Temporal Alignment & Wasserstein Distance & Distributional shift in timing \\
-Temporal Alignment & Fréchet Distance & Curve shape similarity \\
+Temporal Dependency & DTW & Flexible pattern alignment \\
+Temporal Dependency & Wasserstein Distance & Distributional shift in timing \\
+Temporal Dependency & Fréchet Distance & Curve shape similarity \\
 Clustering & Allan Factor & Burstiness and overdispersion \\
 Clustering & Event Counts & Count variation in time bins \\
 Clustering & Ripley's K Function & Multi-scale clustering test \\
@@ -556,8 +556,8 @@ The confusion matrix shows the number of correctly and incorrectly predicted eve
 
 Based on the confusion matrix, we calculate precision, recall, and F1-score. Precision is the proportion of correct predictions out of all predicted events. Recall is the proportion of actual events that were correctly predicted. F1-score is the harmonic mean of precision and recall. However, in our case, these values are not very meaningful because aggressive events are rare and exact matches are unlikely. Still, we include them for completeness.
 
-\subsection{Temporal Alignment Metrics}
-Temporal alignment metrics evaluate how well the predicted aggressive trade sequence follows the timing and rhythm of the actual sequence. These metrics are useful when the goal is to match general behavior.
+\subsection{Temporal Dependency Metrics}
+Temporal dependency metrics evaluate how well the predicted aggressive trade sequence follows the timing and rhythm of the actual sequence. These metrics are useful when the goal is to match general behavior.
 
 Dynamic Time Warping (DTW) is a technique that allows flexible alignment between two sequences by warping the time axis, making it suitable for comparing patterns that may not align perfectly in time \citep{muller2007dtw}. 
 

@@ -2,10 +2,10 @@
 % \setcounter{page}{0}
 % \pagenumbering{arabic}
 
-\section{Benchmark Model}
-% Describe the existing MN backtesting system and its limitations.
-1. how the venues give historical data
-2. the current filling possibility model to represent different scenarios in the market
+% \section{Benchmark Model}
+% % Describe the existing MN backtesting system and its limitations.
+% 1. how the venues give historical data
+% 2. the current filling possibility model to represent different scenarios in the market
 
 \section{Data Analysis}
 This section presents the data sources, data fetching method, initial description of the raw data, as well as data analysis and visualization methods. The dataset includes both limit order book data and trade book data from 10:00:00 to 15:59:59 on 31st January. The timestamps in the order book are recorded in London time, while those in the trade book are American time. To ensure orders in order book are consistent with trades in trade book, both of them are converted to Central European Time(CET). The selected time range for order is from 09:00:00 to 14:59:59 GMT, and for trade book, it's from 04:00:00 to 09:59:59 EST. As a result, both them represent for trading time between 10:00:00 and 15:59:59 CET.

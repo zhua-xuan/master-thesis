@@ -1,16 +1,12 @@
-\chapter{Conclusion and Discussion}\label{chapter:cd}
-% \setcounter{page}{0}
-% \pagenumbering{arabic}
-% Interpretation of Results
+\chapter{Conclusion and Future Recommendations}\label{chapter:cd}
+% discussion of the outcomes
+In conclusion, the results in Chapter~\ref{chapter:experiments} show that our framework has good alignment with real FX spot market in both the market conditions, temporal dependencies and clustering properties of aggressive trades. By using the XGBoost filter, class imbalance gets solved, and the Neural Hawkes Process is able to fits well with the true pattern of aggressive trade. The model gives realistic and dynamic predictions, which are two critical requirements confirmed by evaluation metrics results. By clear short-term excitation, fast decay, and intensity, the model is capable to be explained clearly why an aggressive trade occurs and why not. It is more robust and transparent than black-box models, and more sophisticated and dynamic than single stochastic model. It is useful for building better and more realistic backtesting environments.
 
+% Comparison with Existing Approache, simplications for FX backtesting environments
+Compared to the existing backtesting approach at MN as shown in Table~\ref{tab:filling_spread}, our method gives a more realistic and dynamic view of order filling method. The traditional backtesting method uses filling probabilities based on spread only. This is simple and fast, but it does not reflect how aggressive trades happen in the market, thus loses many transaction opportunities. It ignores the clustering of trades and changes in market conditions. By the use of our model, it captures how often trades happen and when they happen. This makes the backtesting more realistic, dynamic and closer to real market scenarios. 
 
-% Summary of Findings
-
-
-% Comparison with Existing Approaches
-% Practical Implications
-% How the improved backtesting environment can help traders refine execution strategies.
 % Potential applications beyond FX, e.g., equities, crypto markets.
+Besides the use in FX spot market, it is also appliable in other high-frequent trading markets, like equities and crypto. Outside the financial field, it can also be used for classification prediction problems with extreme class imbalance, like medical disease detection, fraud detection in banking, network intrusion detection in cybersecurity, and rare event prediction in industrial systems. In all these cases, events are rare, depend on time and conditions, and require models that can capture both sequence and intensity patterns, which our framework is designed to do.
 
-
-% Future Research Directions
+% Future Research Directions and possible improvement
+There are also some ways to improve our work in the future. First, the model can be extended to simulate multiple types of market events, not just aggressive trades. This would help build a more complete market environment. Second, the current model focuses on one market. Future work can explore multi-asset or cross-market scenarios to test trading strategies across different markets. Finally, the model now uses fixed features calculated by order book information for prediction. It might help to include more features, such as news sentiment. 

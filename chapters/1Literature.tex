@@ -1,20 +1,24 @@
 \chapter{Literature Review}\label{chapter:literature}
-% \setcounter{page}{0}
-% \pagenumbering{arabic}
-%from here on, start the 'real' page numbering, from 1, with normal digits
-\section{Backtesting Platform}
-% 1. Traditional backtesting using historical order book replay.
-% 2. Agent-based market simulations: ABIDES, IABS
 
-\section{Limit Order Book Simulations}
+There are many works devoted to modeling limit order book data. These models are typically based on either classical stochastic processes, machine learning methods, or hybrid approaches. In this section, we summarize key contributions in the literature, highlight their targets and modeling techniques, and point out their limitations. We also discuss how our approach improves upon them.
 
-1. Stochastic approaches (Poisson models, Hawkes Processes).
+A popular direction in the previous work is to model the LOB using stochastic processes, such as Poisson processes, Hawkes processes, or Markov models. For example, \cite{cont_stochastic_2010} introduced a continuous-time stochastic model for the dynamics of a limit order book. This approach allows for analytical explanation but ignores clustering and feedback effects. 
+\cite{bleher_orders_2021} proposed a Markov process LOB model. While it is theoretically rich, their model assumes exponential timing and lacks nonlinear pattern recognition.
 
-2. Machine learning and AI-based generative models (LSTM, GANs, Diffusion Models, neutral SDEs).
+Hawkes processes have become popular because they can capture self-exciting behavior and clustering. For instance, \cite{fonseca_clustering_2015} introduced clustering behavior captured by Hawkes process. However, these models usually assume static exponential kernels and cannot capture more complex dynamics. A Hawkes process-based LOB model is used by \cite{abergel_long-time_2015} highlight the long-time behaviour of the limit order book and the corresponding dynamics of the suitably rescaled price. \cite{zheng_ergodicity_2013} used multivariate Hawkes processes to model mutual excitations between market and limit orders. Their model captures self- and cross-exciting behavior, but the order flow kernels are still simple. \cite{lalor_algorithmic_2025} modeled LOB prices using semi-Markov and Hawkes jump-diffusion processes to capture jumps and clustering but lacks data-driven components and real feature inputs.
 
-% Andrea (2021) used a CGAN-based agent to simulate order book data in equity domain. They implemented the generator into ABIDES (an open-source trading execution platform) to process execution strategies and test performances.
+There are many extension of traditional Hawkes process model. The Buffer-Hawkes model \citep{kaj_buffer_2017} extends the Hawkes process by including a buffer state that connects order flow with market executions. It models mutual excitation and execution feedback but is still limited to Markovian settings. Similarly, a LSTM-based Neural Hawkes Process \citep{lalor_event-based_2025} aim to generate realistic multi-event LOB environments for testing market-making strategies. These works are powerful but usually require a lot of computation and not suitable for high-frequent FX trading. Another extension of the Hawkes process is non-parametric marked Hawkes models \citep{joseph_non-parametric_2024}. They use neural networks to learn the kernel functions. This improves flexibility but requires a lot of data and computation.
 
-\section{Comparative Analysis}
-% Identify gaps in existing approaches
-Most experiments in the paper focus on specific stocks (e.g., Apple, Tesla), but FX market may behave differently.
+Machine learning methods are widely used in recent years. \cite{briola_deep_2024} uses convolutional and LSTM layers to predict mid-price movements. While it gives good accuracy, it lacks interpretability. Other works use GANs \citep{brophy_quick_2019} or Neural SDEs \citep{issa_non-adversarial_2023} to generate realistic time series, but training is often unstable and not efficient for high-frequency tasks. \cite{huang_simulating_2014} proposed the queue-reactive model. This approach is simple and gives good estimates of execution probability and market impact, but it ignores deeper temporal patterns.
+
+To evaluate the quality of simulations, \cite{vyetrenko_get_2019} introduced realism metrics that test both macro and micro features. This work shows that many GAN-based simulators lack realism and produce agents that fail when tested on real markets. This is the reason that we do not apply GANs in our study. Even though it has strong generation ability, reality is an important factor for our model.
+
+Other empirical works analyze order placement and aggressiveness. For instance, \cite{lo_order_2010} find that more aggressive orders are usually smaller. When there are many orders on the same side, traders place smaller and less aggressive orders. But when the other side is deeper, they place larger and more aggressive ones. This show the volume ratio is a critical factor when modeling aggressiveness, which will be considered in next discussion.
+
+
+%------------------conclusion--------------------
+
+Popular LOB models in the literature often rely on fixed stochastic structures or black-box machine learning, typically ignoring important market features, temporal dependency, clustering, and interpretability. For instance, models based only on single Hawkes processes cannot capture nonlinear relations in market conditions. On the other hand, deep learning models like GANs or LSTMs are hard to interpret and expensive to train.
+
+In this thesis, we propose a novel approach that integrates a GRU-based Neural Hawkes Process with XGBoost to solve extreme class imbalance. It captures not only market features (e.g., spread, volume, imbalance), but also temporal dependencies and clustering behavior. GRU is lighter than LSTM and more efficient for high-frequency data. Compared to GANs, it is easier to train and more stable. Compared to traditional Hawkes models, it is more flexible and dynamic. Compared to pure machine learning, it is not a black box and the intensity function has clear structure. It is fair to expect our method provides a better framework for predicting pattern of the aggressive trade.
 
