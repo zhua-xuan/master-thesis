@@ -1,0 +1,101 @@
+
+% THIS IS THE MAIN FILE (i.e. compile this file, compiling the others directly won't work)
+%
+\documentclass[a4paper,10pt,twoside]{report}
+\usepackage{titlesec}
+
+%all the other includes etc. are done in the thesis.sty file.
+\usepackage{thesis}
+
+%
+% These commands need to be defined in order to produce a correct and personalized document
+%
+\newcommand{\shortdoctitle}{Improving Backtesting Environment}
+\newcommand{\doctitle}{Aggressive Trade Prediction Using XGBoost-Enhanced Neural Hawkes Process}
+\newcommand{\docsubtitle}{Under Extreme Class Imbalance, with Application in the FX Spot Market}
+                       
+\newcommand{\me}{Jiaxuan Zhu}
+\newcommand{\stnumbr}{2838063}
+\newcommand{\keywords}{Limit Order Book, Prediction, XGBoost, GRU, Hawkes Process
+Foreign Exchange Market, Algorithmic Execution}
+
+\newcommand{\customDate}{February 10, 2025}
+
+%Be sure to use all the titles for your committee members!!! (their names show up on the very first page!)
+%\newcommand{\firstCommitteeMember}{$<$Ronald de Vlaming, Erwin Hazeveld$>$}
+
+
+
+
+\author{\me}
+
+%
+% PDF settings
+%
+\hypersetup
+{
+    pdfauthor={\me},
+    pdftitle={\shortdoctitle},
+    pdfsubject={\doctitle},
+    pdfkeywords={\keywords}}
+
+
+\makeglossaries
+\input{appendices/glossary.tex}
+
+\makeatletter
+\@removefromreset{page}{chapter}
+\renewcommand{\thepage}{\arabic{page}}
+\makeatother
+
+
+\begin{document}
+\renewcommand\bibname{References}
+%use this include for PDF and distribution versions
+\pagenumbering{roman}
+\include{titlepage}
+
+\normalsize
+
+\newpage
+
+%Sometimes line numbers are nice, uncomment the next line to enable:
+%\linenumbers
+
+%It could be handy to have a list of todos and brainstorms in your thesis
+%\chapter*{*General todos*}\todo{remove this chapter}
+%\input{chapters/general_todos}
+
+%An executive summary if you want:
+%\chapter*{Executive summary}\label{chapter:executive_summary}
+%\input{chapters/executive_summary}
+
+%\clearemptydoublepage
+
+\tableofcontents  
+\pagenumbering{arabic}
+\input{chapters/0Introduction}
+
+%\input{chapters/1Literature}
+
+\input{chapters/2Preliminary}
+
+\input{chapters/3Methodology}
+
+\input{chapters/4Experiments}
+
+\input{chapters/5Conclusion_Discussion}
+
+\printglossary[type=\acronymtype, title=Acronyms]
+\printglossary
+
+%Choose a good bibliography style, plain would do often, but these might be nice too
+%\bibliographystyle{these}
+\bibliography{references}
+
+\newpage
+\appendix
+\input{appendices/main}
+
+
+\end{document}
