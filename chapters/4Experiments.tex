@@ -1,38 +1,16 @@
 \chapter{Empirical Experiments}\label{chapter:experiments}
 % \setcounter{page}{0}
 % \pagenumbering{arabic}
-
-\section{Prices and Filling Information}
-To have a comprehensive understanding of how trades in trade book correspond to orders in order book, Figure~\ref{fig:p_f_i} provides an overview of the whole active trading hours from 10:00 am to 4:00 pm on 31st January. It shows how filled price in the trade book track the mid-price in the order book, the distribution of passive and aggressive trades, and the spread range for each trade. The lower subplot presents the filled volume for each trading record.
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=1\linewidth]{figures/Prices and Filling Information.png}
-    \caption{Prices and filling information. This plot shows the mid-price from the order book (blue line), trade book filled prices (red line), and spread (yellow shading). Passive trades (green dots) and aggressive trades (red dots) are highlighted. The bottom panel represents the filled volume over time.}
-    \label{fig:p_f_i}
-\end{figure}
-As can be seen in Figure~\ref{fig:p_f_i}, the mid-price has the highest point between 14:00 and 15:00. The filled price fits the mid-price well. We can see there are a lot of red dots which shows that they are aggressive trades. We didn't classify bid or ask side because it's not the research target in the thesis. These aggressive trades go outside the spread range. The size of dots stands for relative volume of the trades. In other words, when the volume is large compared to other timestamps, the size of the dot will be larger. Therefore, we can easily see the active trading time point in the plot. Moreover, red dots represent aggressive trades in the trade book. We can see the red dots are more than green ones, which indicates that a lot of orders get filled by aggressive traders taking out them of the order book, instead of passively waiting for the market movements. This aligns with our need to improve the backtesting environment by predicting aggressive trades across the order book. Specially, there are several sparks in the trend of mid-price in the order book. These are caused by...
-
-From the bottom panel, in the beginning of 10:00, 15:45, 14:11, there are high volume up to 2,000,000, which are higher than common volume 1,000,000. At 13:45, the highest trading volume occurs as 3,000,000. Combined the two plots together, we can see when there's a drop, it's often accompanied by many trading records or large trades. 
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=1\linewidth]{figures/Filtered Prices and Filling Information.png}
-    \caption{Filtered prices and filling information. Similar to Figure~\ref{fig:p_f_i}, but filtering sharp jump points. The price and trade dynamics remain the same, without increased variability for better general trend capture}
-    \label{fig:f_p_f_i}
-\end{figure}
-
-In the Figure~\ref{fig:f_p_f_i} after filtering 1,232 sparks in the data, we can clearly see some clustering for both passive and aggressive trades. For example, in the beginning of 10:00, many passive trades gather here. It may because there's a sharp dropping movement in the market, many limit orders are filled. Furthermore, many aggressive trades gather around  
-
+In this chapter, we present the empirical experiments to test the model. The goal is to test our proposed prediction framework in modeling aggressive trades in the FX spot market. In Section~\ref{sec:prediction}, we present the prediction results from the full framework. It includes: first, an XGBoost model is used to reduce the size of the data and find possible aggressive trades; second, a GRU-based neural network encodes temporal market conditions into hidden states, a Neural Hawkes Process uses these hidden states to estimate the chance of aggressive trades over time. Lastly, Section~\ref{sec:benchmark} compares our model's performance with a benchmark XGBoost classifier without resampling. This shows our approach not only has dynamic prediction ability but also reflects realistic trading behavior in terms of timing, clustering, and statistical distribution.
 
 % Evaluating how well the model captures aggressive trades movements and distribution.
 % Market realism (stylized facts: price impact, spread, volume clustering).
 
-\section{Prediction Results}
+\section{Prediction Results} \label{sec:prediction}
 The prediction framework consists of three sequential stages. The first stage employs an XGBoost model to identify potential aggressive trade timestamps while reducing the overall dataset size. The second stage is GRU networks. It serves as a bridge between machine learning approaches and stochastic processes. It generates hidden states as neural kernels. The final stage implements a neural Hawkes process that estimates event intensity. In the end this approach produces a detailed and interpretable decision of predictions for aggressive trading events.
 
-We present the prediction results of each stage using a representative trading day. The training dataset consists of the whole trading day from January 31, 2025, 10:00:00 to 15:59:59 PM, containing 307,764 rows. This day is chosen because it contains lots of market information and trade data, which is the most comprehensive trading day across the whole dataset. 
-
-The testing datasets are some 30-minute, 1-hour windows from different trading days, each with around 20,000 rows. This specific time window was selected as it represents a commonly used timeframe for FX trading backtesting within the MN platform.
+% ------------Appendix------------
+We present the prediction results of each stage using representative trading days. The training data consists of a whole trading day and the test data consist of random fragment datasets from different days. In this section, the training dataset consists of the whole trading day from January 31, 2025, 10:00:00 to 15:59:59 PM, containing 307,764 rows. This day is chosen because it contains lots of market information and trade data, which is the most comprehensive trading day across the whole dataset. The testing dataset is 30-minute from February 18, 2025, 13:30:04.710 to 13:59:53.060. More testing datasets which are some 30-minute, 1-hour windows from different trading days and each with around 20,000 rows are displayed in Appendix. This specific time window was selected as it represents a commonly used timeframe for FX trading backtesting within the MN platform.
 
 \subsection{XGBoost Stage: With and Without KMeansSMOTE}
 
@@ -55,9 +33,9 @@ The median strategy fills missing values with the median of each feature. A clus
 % !!maybe need refinement
 This step is aimed to get a model to initially find out as many positives as possible by keeping recall as 0.6 without losing precision. So, the input for testing only depends on market features ($S$, $M$, $V_A^{1}$, $V_A^{1}$, $\bar{\delta}_S$, $\bar{\delta}_M$, $\sigma_S$, $\sigma_M$, $r_V$), and the output contains the shortened training dataset for the next step with aggressive trade candidates. The filtered output also gets rebalanced towards class 1 because we filter out those are not predicted as 1. the bias toward class 0 and helps the model learn better from the underrepresented class 1.
 
-As shown in Figure~\ref{fig:xgb-pred-vs-true-km}, the model catches many true positives. The class balancing done by KMeansSMOTE reduces the bias toward class 0 and helps the model learn better from the underrepresented class 1.
+As shown in Figure~\ref{fig:xgb-pred-vs-true-km}, KM-XGBoost catches many true positives. The class balancing done by KMeansSMOTE reduces the bias toward class 0 and helps the model learn better from the underrepresented class 1.
 
-Table~\ref{tab:xgb-confusion-km} shows the confusion matrix. 4,011 are predicted as class 0 (non-aggressive trade), and 3,739 are predicted as class 1. The model correctly finds 13 true positives and 4,001 true negatives. The dataset size drops from 7,750 to 3,739 rows, which is 51.75\% of the original. This helps improve speed and keeps most of the important trade points.
+Table~\ref{tab:xgb-confusion-km} shows the confusion matrix. 4,011 are predicted as class 0 (non-aggressive trade), and 3,739 are predicted as class 1. The model correctly finds 13 true positives and 4,001 true negatives. We exclude those which are not predicted as class 1, so the testing dataset size drops from 7,750 to 3,739 rows, which is 51.75\% of the original. This helps improve speed and keeps most of the important trade points, and make preparation for prediction in the next neural Hawkes process.
 
 Moreover, Table~\ref{tab:xgb-classification-report-km} shows the detailed classification report. We mainly care about the prediction performance for class 1, since this is the main goal of the whole research. The precision of class 0 is not meaningful here because the original data is extremely imbalanced. Although the precision for class 1 is still very low at 0.0035, the recall reaches 0.5652. This means the model finds sufficient true trades under the model with oversampling. This makes preparation for next neural Hawkes process.
 
@@ -117,12 +95,25 @@ Without KMeansSMOTE, even if we reach the same recall, the precision is even wor
 
 These results show that KMeansSMOTE gives significant improvement when dealing with extreme class imbalance, especially in terms of F1-score. We can also infer from the classification evaluation that single XGBoost is not enough for the prediction task even with resampling methods. The large set of candidate points predicted at this stage will be passed to the next neural Hawkes model, which helps to further clean and refine the aggressive trade signals. 
 
+\newpage
 
 %------------- Neural Hawkes process -------------
 \subsection{Neural Hawkes Process Results}
-We use the GRU model as a neural kernel to generate hidden states, which are then used in the Hawkes process. The estimation is performed on the dataset from January 31, 2025, between 10:00:00 and 15:59:59. This period is the same as the XGBoost training set, but the data is filtered using the anomaly detection function in Algorithm~\ref{al: window-based} to reduce class imbalance.
+We use the GRU model to generate hidden states as a neural kernel, which are then used in the Hawkes process. In this stage, we refer to the training process as estimation and testing process as prediction, since it involves fitting a Hawkes process. The estimation (training) is performed on the dataset from January 31, 2025, between 10:00:00 and 15:59:59. This period is the same as the XGBoost training set, but the data is filtered using the anomaly detection function in Algorithm~\ref{al: window-based} to reduce class imbalance, so the class ratio aligns with the output from XGBoost.
 
-In the estimation stage, the GRU is trained as mentioned in Chapter~\ref{chapter:methodology} and hidden states \( h_t \) are extracted. These hidden states are passed to the Hawkes intensity formula in Equation~\ref{eq:intensity}. We estimate the parameters by minimizing the negative log-likelihood using the L-BFGS-B method. The optimization process completed in 363.98 seconds, the final negative log-likelihood reached $-8261.28$, and success flag returned \texttt{True} which means it successfully get convergence. The estimated results are as follows:
+In the estimation stage, the GRU is trained as mentioned in Chapter~\ref{chapter:methodology} and hidden states $h_t$ are extracted. For estimation in next Hawkes process, Figure~\ref{} depicts the hidden states generated from GRU.
+
+In the estimation stage, the GRU is trained as described in Chapter~\ref{chapter:methodology}, and the hidden states $h_t$ are extracted for each time step. These hidden states serve as a compressed representation of the input dynamics and are used as input features for the Hawkes process parameter estimation. The hidden states are transformed using the function $\log(1 + e^{h_k(t)})$ as in Formula~\ref{eq:intensity}. Figure~\ref{fig:train-hidden-state} depicts the hidden states generated from the GRU, separated by class. The top panel shows the hidden state for class 0 (non-aggressive events), while the bottom panel displays the hidden state for class 1 (aggressive events). Compared to class 0, the hidden state for class 1 shows smoother trends and more distinct spikes, which may help the Hawkes process distinguish aggressive event patterns more effectively in the next stage.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/train-hidden-state.png}
+    \caption{Hidden state for estimation dataset of each event type. The top panel shows the hidden state for class 0 (non-aggressive events), while the bottom panel displays the hidden state for class 1 (aggressive events).}
+    \label{fig:train-hidden-state}
+\end{figure}
+
+
+These hidden states are passed to the Hawkes intensity formula in Equation~\ref{eq:intensity}. We estimate the parameters by minimizing the negative log-likelihood using the L-BFGS-B method. The optimization process completed in 363.98 seconds, the final negative log-likelihood reached $-8261.28$, and success flag returned \texttt{True} which means it successfully get convergence. The estimated results are as follows:
 \begin{table}[H]
     \centering
     \caption{Estimated Parameters of the Neural Hawkes Process}
@@ -145,16 +136,18 @@ In the estimation stage, the GRU is trained as mentioned in Chapter~\ref{chapter
     \end{tabular}
 \end{table}
 
-Results of the baseline intensity $\mu$ mean the natural chance of non-aggressive trade is higher than aggressive trade mean without any past event influence. In our case, non-aggressive trades are more likely to occur by default with $\mu_0 = 0.0677$, while aggressive trades are rare ($\mu_1 = 0.0029$) and usually triggered by certain market activity otherwise less easy to happen naturally.
+Results of the baseline intensity $\mu$ mean the natural chance of a non-aggressive trade is higher than an aggressive trade without any past event influence. In our case, non-aggressive trades are more likely to occur by default with $\mu_0 = 0.0677$, while aggressive trades are rare ($\mu_1 = 0.0029$) and usually triggered by certain market activity otherwise less easy to happen naturally.
 
-For excitation matrix $\alpha$, the first column shows how past events of both types excite type 0 (non-aggressive), and the second column shows how they excite type 1 (aggressive). An aggressive trade (type 1) causes a strong self-excitation (2.57), but non-aggressive trade has much smaller influence on aggressive one (0.52). Surprisingly, for non-aggressive trade, cross-excitation from aggressive to non-aggressive (15.85) is higher than its self-excitation. This reflects aggressive trade events have significant market influence and might cause volatility towards trader behaviors. 
+For excitation matrix $\alpha$, the first column shows how past events of both types excite type 0 (non-aggressive), and the second column shows how they excite type 1 (aggressive). An aggressive trade (type 1) causes a strong self-excitation (2.57), but non-aggressive trade has much smaller influence on aggressive one (0.52). Surprisingly, for non-aggressive trade, cross-excitation from aggressive to non-aggressive (15.85) is higher than its self-excitation. This reflects aggressive trade events have significant market influence both to themselves and to non-aggressive trades.
 
 Each value in the decay matrix $\beta$ represents how quickly the effect of a past event of type fades when it influences the intensity of current type. A non-aggressive trade (type 0) decays with a moderate speed when it influences another non-aggressive trade (\( \beta = 10.55 \)). When an aggressive trade (type 1) influences non-aggressive activity (\( \beta = 18.48 \)), the effect decays faster. Combined with the $\alpha = 15.85$, it suggests that aggressive trade has a short but noticeable impact for non-aggressive trade in the market. On the other hand, a non-aggressive trade has almost no lasting effect on aggressive trades, as shown by the very fast decay rate (\( \beta = 62.32 \)). Lastly, the self-decay for aggressive trades (\( \beta = 14.76 \)) is moderate, meaning aggressive trades cluster, but the effect also wears off gradually.
 
-% !!need careful explain of this plot
-Figure~\ref{fig:neuralhp-intensity} shows the result of the intensity estimation based on the fitted model and the hidden states from GRU. It is generated by computing the intensity at evenly spaced timestamps over the trading period. The model uses the hidden state $h_t$ from GRU at each time point, along with the event history up to that point, to calculate the intensity values. 
 
-The top plot the sum of intensities $\sum_{m} \lambda_k(t)$ across both event types at every time step. The small purple markers indicate when actual events occurred. The middle plot shows the intensity for type 0 (non-aggressive). It has strong fluctuations and many large peaks. It aligns well with the red event markers. As can be seen in the bottom plot, it is type 1 (aggressive) intensity, which is generally much lower than non-aggressive trade events. Still, many aggressive trade events align with sharp local peaks, meaning the model successfully captures those trades. In conclusion, the estimation results show that the model correctly adjusts intensity to reflect aggressive trade likelihood.
+% ----------------estimated intensity plot------------------
+% !!need careful explain of this plot
+Figure~\ref{fig:neuralhp-intensity} shows the result of the intensity estimation based on the fitted model and the hidden states from GRU. It is generated by computing the intensity at evenly spaced timestamps over the trading period, and only 1,750 steps are shown here. The model uses the hidden state $h_t$ from GRU at each time point, along with the event history up to that point, to calculate the intensity values. 
+
+The top plot is the sum of intensities $\sum_{m} \lambda_k(t)$ across both event types at every time step. The small purple markers indicate when actual events occurred. The middle plot shows the intensity for type 0 (non-aggressive). It has strong fluctuations and many large peaks. It aligns well with the red event markers. As can be seen in the bottom plot, it is type 1 (aggressive) intensity, which is generally much lower than non-aggressive trade events. Still, many aggressive trade events align with sharp local peaks, meaning the model successfully captures those trades. In conclusion, the estimation results show that the model correctly adjusts intensity to reflect aggressive trade likelihood.
 
 \begin{figure}[H]
     \centering
@@ -164,7 +157,7 @@ The top plot the sum of intensities $\sum_{m} \lambda_k(t)$ across both event ty
 \end{figure}
 
 %------------ prediction -------------
-After getting the estimated parameters from the training phase, we test the Neural Hawkes Process on out-of-sample data. The input for prediction comes from the test output dataset of the XGBoost classifier. This XGBoost, as discussed before, was designed to contain more aggressive trades by predicting as many positives as possible, helping us balance the class better during prediction. It includes market features such as spread ($S$), mid-price ($M$), volume at best ask and bid ($V_A^1$, $V_B^1$), short-term average changes ($\bar{\delta}_S$, $\bar{\delta}_M$), volatilities ($\sigma_S$, $\sigma_M$), and volume ratio ($r_V$). These can all be fetched directly from Snowflake or calculated by these raw data. These features are used to extract hidden states from the GRU, and the corresponding timestamps ($T$) are passed into the Hawkes process to compute event intensities using the previously estimated parameters.
+After getting the estimated parameters from the training phase, we test the Neural Hawkes Process on out-of-sample data. The input for prediction comes from the out-of-sample output of the XGBoost classifier. This XGBoost, as discussed before, is designed to contain more aggressive trades by predicting as many positives as possible, helping us balance the class better during prediction. It includes market features such as spread ($S$), mid-price ($M$), volume at best ask and bid ($V_A^1$, $V_B^1$), short-term average changes ($\bar{\delta}_S$, $\bar{\delta}_M$), volatilities ($\sigma_S$, $\sigma_M$), and volume ratio ($r_V$). These can all be fetched directly from Snowflake or calculated by these raw data. These features are used to extract hidden states from the GRU, and the corresponding timestamps ($T$) are passed into the Hawkes process to compute event intensities using the previously estimated parameters.
 
 We first conduct prediction on a sample from 2025-02-18 13:30:04.710 to 2025-02-18 13:59:53.060. The model finally predicts 38 points as aggressive trades. In reality, 23 of them are actual aggressive trades during this time window. It is acceptable because we are more tolerant to false positives than false negatives. The prediction result is in Figure~\ref{fig:nhp-aflag}.
 
@@ -177,15 +170,16 @@ We first conduct prediction on a sample from 2025-02-18 13:30:04.710 to 2025-02-
     \label{fig:nhp-aflag}
 \end{figure}
 
-When it comes to performance evaluation, relying on exact matching metrics like confusion matrix, precision, or recall is not sufficient. In our case, the model predicts 38 aggressive trades while only 23 are truly observed. This difference is expected because the neural Hawkes process simulates events based on the fitted intensity. Its purpose is to capture realistic market patterns, rather than replicate the exact event sequence. In the MN backtesting context, it is more important to match the overall temporal behavior and shape of trading activity than to align precisely with every timestamp. Below, we explain the results of more appropriate evaluation metrics, as summarized in Table~\ref{tb:Evaluation Metrics}.
 
+
+\subsection{Performance Evaluation}
+When it comes to performance evaluation, relying on exact matching metrics like confusion matrix, precision, or recall is not sufficient. In our case, the model predicts 38 aggressive trades while only 23 are truly observed. This difference is expected because the neural Hawkes process simulates events based on the fitted intensity. Its purpose is to capture realistic market patterns, rather than replicate the exact event sequence. In the MN backtesting context, it is more important to match the overall temporal behavior and shape of trading activity than to align precisely with every timestamp. Below, we explain the results of more appropriate evaluation metrics, as summarized in Table~\ref{tb:Evaluation Metrics}.
 
 %----------Temporal Alignment---------
 The \textbf{Dynamic Time Warping (DTW)} distance is 23.0, with a normalized DTW value of 0.00297 in Table~\ref{tab:dtw}. This is very low, which shows that the predicted trade activity follows a very similar time pattern as the actual aggressive trades. The alignment path length is 15,464, and the diagonal ratio is 1.995. A ratio close to 2 means the predicted and actual sequences align almost one-to-one. These results confirm that the model learns the shape and rhythm of the trading activity well.
 \begin{table}[H]
     \centering
     \caption{Dynamic Time Warping (DTW) Results} \label{tab:dtw}
-    \label{tb:dtw-results}
     \begin{tabular}{lr}
     \toprule
     Metric & Value \\
@@ -237,7 +231,7 @@ In summary, these metrics show that our model captures the dynamics and timing p
 
 
 
-%------clustering-----------
+%-------------------clustering---------------------
 To further evaluate the realism of the predicted aggressive trades, we assess the clustering behavior using two statistical tools: the Allan Factor and Ripley's K/L functions. These methods help us understand whether the predicted results have realistic temporal clusters like the reality in the market, or whether they behave more like random noise.
 
 The \textbf{Allan factor} measures event clustering over different time windows. A value of AF greater than 1 indicates clustering, while AF close to 1 suggests a random process. As can be seen in Table~\ref{tb:allan-factor}, for the true aggressive trades ($\bar{\alpha}_\text{true}$), the average Allan Factor is 1.0698. The Allan Factors across different window sizes are as follows: 1.044 for window size 2, 1.044 for window 5, 0.958 for window 10, 1.090 for window 20, and 1.050 for window 50. This suggests consistent clustering in the actual events. For the predicted aggressive trades ($\bar{\alpha}_\text{pred}$), the average Allan Factor is higher, at 1.2687. The Allan Factors at various window sizes are: 0.869 at window size 2, 1.290 at window 5, 1.159 at window 10, 1.346 at window 20, and 1.722 at window 50. These values show stronger clustering in the prediction, especially at longer windows. This is reasonable, as the neural Hawkes process is designed to model self-exciting behavior especially.
@@ -364,15 +358,139 @@ The KS test is used to compare the cumulative distributions of two sample sets. 
 %---------Conclusion-----------
 Overall, all these metrics, including DTW, Wasserstein distance, Allan factor, Ripley's K and L functions, autocorrelation and KS test confirm that the neural Hawkes process not only models the timing and clustering of events, but also captures the underlying distributional structure of aggressive trade frequency. The Neural Hawkes Process with XGBoost filter and GRU kernel captures realistic and reliable patterns in aggressive trade. It shows interpretable dynamics like short-term excitation, quick decay, and clustering, especially for aggressive trades. This supports our idea that using our framework not only captures overall market features and temporal dependency, but also gives more robustness and control than black-box classifiers.
 
-\section{Overall Data Flow}
-Figure~\ref{fig:data-flow-diagram} illustrates the full data flow of the framework, including KMeansSMOTE XGBoost and the Neural Hawkes Process. On the left side, training data A1 from Day 1 is used to train the KM-XGBoost classifier. KMeansSMOTE is applied to improve class imbalance. Normally the final training dataset contains  over 400,000 rows and 13 columns. The trained model is then used to filter aggressive trades on window-based (like 30 minutes or 1 hour) test data B1 from Day 2, producing the output data B2.
 
-On neural Hawkes process side, estimated data A2 is functioned by an anomaly detection for class balance. Then it is processed by a GRU model to extract hidden states. After that, estimation of the parameters is implemented. The filtered data B2 from the XGBoost stage is used to compute the event intensities on B2 timestamps. These intensities are passed through Ogata's thinning algorithm to promote the final aggressive trade predictions.
+\newpage
 
-The final prediction result is evaluated against the true events using various metrics, including dynamic time warping, Wasserstein distance, Allan factor, Ripley's K and L functions, autocorrelation (ACF/PACF), and KS test. These metrics cover different dimensions such as temporal dependency, clustering, and distribution.
+\section{Benchmark Comparison} \label{sec:benchmark}
+% \section{Benchmark Model}
+% % Describe the existing MN backtesting system and its limitations.
+% 1. how the venues give historical data
+% 2. the current filling possibility model to represent different scenarios in the market
+In order to show the outperformance of our model, traditional XGBoost is used as a benchmark model. Other settings are the same as in Chapter~\ref{chapter:methodology}, but KMeansSMOTE resampling method is also removed, so it is a complete basic machine learning tool for classification. We compare the evaluation results between the benchmark (XGBoost) and our model (XGBoost-Enhanced Neural Hawkes). 
+
+Table~\ref{tb:dtw_com} compares Dynamic Time Warping (DTW) results between the benchmark model and our model for aligning predicted and actual aggressive trade pattern. The DTW results show the model gives more accurate timing and better matches the true aggressive trade pattern. The DTW distance drops from 632 to 23 when comparing from the benchmark to our model. It means the predicted trades are much closer in time to the real ones. This is a big improvement. The normalized DTW distance also becomes much smaller, going from 0.0815 to 0.0029. Though the diagonal ratio stays about the same in both cases, the model has a slightly lower value. This shows a small improvement in how well the predicted trades match one-to-one with real trades.
+
+\begin{table}[H]
+    \centering
+    \caption{DTW Results Comparison} \label{tb:dtw_com}
+    \begin{tabular}{lrr}
+    \toprule
+    Metric & Benchmark Value & Model Value\\
+    \midrule
+    DTW Distance & 632 & 23 \\  % The total cost (distance) of aligning your two sequences
+    Normalized DTW Distance & 0.0815 & 0.0029 \\  % DTW distance normalized by the length of the alignment path
+    Alignment Path Length & 15,464 & 15,464 \\
+    Diagonal Ratio & 1.996 & 1.995 \\   % 	Measures deviation from perfect 1-to-1 alignment. Closer to 1 = better
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+In Table~\ref{tb:wasserstein_com}, the Wasserstein distance results also show that the model predicts the timing of aggressive trades much better than the benchmark. The distance drops from 0.1054 to 0.0019, meaning the average time difference between predicted and real aggressive trades is much smaller in the model. The normalized distance shows the same result. This means the model's predictions are much closer to the real timing, while the benchmark is further off.
+\begin{table}[H]
+    \centering
+    \caption{Wasserstein Distance Results Comparison}
+    \label{tb:wasserstein_com}
+    \begin{tabular}{lrr}
+    \toprule
+    Metric & Benchmark Value & Model Value\\
+    \midrule
+    Wasserstein Distance & 0.1054 & 0.0019 \\  % The average time difference between predicted and actual events.
+    Normalized Distance & 0.1054 & 0.0019 \\  % 10.54% of the worst-case possible mismatch
+    Maximum Possible Distance & 1.0000 & 1.0000 \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+The Allan Factor results in Table~\ref{tb:allan-factor_com} show how clustered the aggressive trades are over different time windows. The true aggressive trade pattern has an average Allan Factor of about 1.0698. It suggests a mild clustering pattern. The model predictions have a slightly higher average of 1.2687, meaning they are a bit more clustered than the reality, but still close. In contrast, the benchmark shows very high clustering, with an average Allan Factor of 4.9571 and especially large values at bigger windows, such as 9.064 at window size 50. This means the benchmark tends to group many predicted trades together in short bursts, which is not realistic. Our model gives a pattern that is much closer to the true market behavior, both in clustering and in how the trades are spaced out over time.
+\begin{table}[H]
+    \centering
+    \caption{Allan Factor Results Comparison}
+    \label{tb:allan-factor_com}
+    \begin{tabular}{lccc}
+    \toprule
+    \textbf{Window Size} & $\bar{\alpha}_\text{true}$ & $\bar{\alpha}_\text{pred}$ & $\bar{\alpha}_\text{benchmark}$ \\
+    \midrule
+    2   & 1.044 & 0.869 & 0.452 \\
+    5   & 1.044 & 1.290 & 1.148 \\
+    10  & 0.958 & 1.159 & 2.303 \\
+    20  & 1.090 & 1.346 & 4.582 \\
+    50  & 1.050 & 1.722 & 9.064 \\
+    \midrule
+    \textbf{Average AF} & 1.0698 & 1.2687 & 4.9571 \\
+    \textbf{Number of Events} & 23 & 38 & 840 \\
+    \textbf{Event Rate} & 0.00297 & 0.00490 & 0.108387 \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+
+For Ripley's \(L\) function in Table~\ref{tb:ripley-l_com}, our model predicts a slightly stronger clustering pattern, with an average of 31.04. But this is still close to the true pattern and suggests the model captures the clustering behavior well. In contrast, the benchmark has a much higher average \(L(r)\) value of 48.34, and especially large values at larger time windows like 39.46 at 5 seconds. This means the benchmark predicts too much clustering, far more than what happens in the real data. 
+
+\begin{table}[H]
+    \centering
+    \caption{Ripley's L Function Comparison} 
+    \begin{tabular}{lccc}
+    \toprule
+    \textbf{Metric} & $\bar{\alpha}_\text{true}$ & $\bar{\alpha}_\text{pred}$ & $\bar{\alpha}_\text{benchmark}$ \\
+    \midrule
+    Number of Events & 23 & 38 & 840 \\
+    Event Intensity (events/sec) & 0.0128 & 0.0211 & 0.4667 \\
+    Average \( L(r) \) & 22.7610 & 31.04 & 48.3360 \\
+    \( L(1s) \) & 12.6101 & 13.96 & 17.4891\\
+    \( L(2s) \) & 11.6101 & 15.45 & 25.2693\\
+    \( L(5s) \) & 15.4251 & 22.42 & 39.4575\\
+    \bottomrule
+    \end{tabular}
+    %\caption{Ripley's L Function Comparison for true, predicted, and benchmark aggressive trade indicators}    
+    \label{tb:ripley-l_com}
+\end{table}
+
+Table~\ref{tab:acf-series-com} compare the autocorrelation patterns of true, predicted, and benchmark aggressive trade sequences. The benchmark shows a very high lag-1 autocorrelation of 0.7196, which slowly decreases but still remains strong at lag-5 (0.3897) and lag-10 (0.2428). This suggests that the benchmark predictions are highly dependent on their recent past values. The model predictions lie in between true series and benchmark: they have a lag-1 autocorrelation of 0.1310, which is slightly higher than the true series, but still far below the benchmark. 
+
+\begin{table}[htbp]
+\centering
+\caption{Autocorrelation comparison}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Metric} & $\bar{\alpha}_{\text{true}}$ & $\bar{\alpha}_{\text{pred}}$ & $\bar{\alpha}_{\text{benchmark}}$ \\
+\midrule
+Lag-1 autocorrelation       & 0.0842  & 0.1310  & 0.7196  \\
+Lag-5 autocorrelation       & -0.0030 & 0.0224  & 0.3897  \\
+Lag-10 autocorrelation      & -0.0030 & -0.0048 & 0.2428  \\
+\# Significant lags         & 6       & 14      & 48      \\
+Has significant autocorr    & True    & True    & True    \\
+\bottomrule
+\end{tabular}
+%\caption{Autocorrelation comparison for true, predicted, and benchmark aggressive trade indicators}
+\label{tab:acf-series-com}
+\end{table}
+
+
+% haven't depict this
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/data_flow1.png}
-    \caption{Data flow of the full pipeline from raw data to final prediction.}
-    \label{fig:data-flow-diagram}
+    \includegraphics[width=0.95\linewidth]{figures/ACF_181330_benchmark.png}
+    \caption{Autocorrelation (ACF) and Partial Autocorrelation (PACF) plots of actual and benchmark predicted aggressive trade series.}
+    \label{fig:acf-pacf-com}
 \end{figure}
+
+Table~\ref{tb:ks-test-com} compares the Kolmogorov--Smirnov (KS) test results between the benchmark and the model. The KS statistic for the model is only 0.0019, compared to 0.1054 for the benchmark. This shows that the predicted event time distribution from the model is much closer to the true distribution than the benchmark. The p-value for the model is 1.0000, meaning there is no significant difference between the predicted and actual distributions. 
+In contrast, the benchmark's p-value is 0.0000, indicating a clear mismatch.  The predicted proportion of aggressive trades from the model is 0.0049, which is very close to the actual proportion of 0.0030. Meanwhile, the benchmark predicts 10.84\% of events as aggressive, far from the actual value. The proportion difference is only 0.0019 for the model, but 0.1054 for the benchmark. These results show that the model not only matches the number of aggressive trades more accurately but also better captures their overall distribution over time.
+
+\begin{table}[H]
+    \centering
+    \caption{Kolmogorov--Smirnov Test Results Comparison}
+    \label{tb:ks-test-com}
+    \begin{tabular}{lrr}
+    \toprule
+    \textbf{Metric} & \textbf{Benchmark Value} & \textbf{Model Value}\\
+    \midrule
+    KS Statistic & 0.1054 & 0.0019 \\
+    p-value & 0.0000 & 1.0000 \\
+    Significant ($p < 0.05$) & True & False \\
+    Actual Proportion & 0.0030 & 0.0030 \\
+    Predicted Proportion & 0.1084 & 0.0049 \\
+    Proportion Difference & 0.1054 & 0.0019 \\
+    \bottomrule
+    \end{tabular}
+\end{table}

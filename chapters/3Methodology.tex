@@ -1,25 +1,26 @@
 \chapter{Methodology}\label{chapter:methodology}
-% \setcounter{page}{0}
-% \pagenumbering{arabic}
-% need change
-This chapter discusses mathematical principles of models used in the thesis. The kernel metrics, basic dataset input for training, data processing methods and three prediction models are covered respectively, along with the intuition behind the methodology.
 
-\section{Aggressive Trade}
-In the FX trading market, traders may aggressively participate and take out orders which are waiting in the order book. This happens when traders are eager to get trades done, putting more priority in time than price. Once two orders get matched, the information is clearly recorded in trade book data, including the filling price, volume and direction where the order triggers. Normally the filling price for this kind of trade is higher than the best bid/ask price when the aggressive trader intends to submit an order. In contrast to this aggressive trade, it is also common that a trader just put forward a limit order and let it queue in the order flow. After positive market movements, the best bid/ask price matches the order price, the order is likely to get filled if it has the top priority. If the orders are matched, this information is also recorded in the trade book, but with a filling price at the best bid/ask. If it fails to match, it continues to stay in the order book and deepen the order book flow. Besides these two active trading situations, there are plenty of orders silently being submitted or staying and can not find any corresponding records in the trade book at the same timestamp. 
+
+% need change
+This chapter discusses mathematical principles of models used in the thesis. The kernel metrics, basic dataset input for training, data processing methods and three prediction models are covered respectively, along with the intuition behind the methodology. In Section~\ref{sec:data-flow}, we summarize the whole data flow and how the three parts are connected. 
+
+\section{Aggressive Trade: Target Variables}
+In the FX trading market, once two orders get matched, the information is clearly recorded in trade book data, including the filling price, volume and direction where the order triggers. There are two ways of trading. Traders may aggressively participate and take out orders which are waiting in the order book. This happens when traders are eager to get trades done, putting more priority in time than price. Normally the filling price for this aggressive trade is higher (lower) than the mid-price and across the spread to touch even more aggressive price. In contrast to aggressive trade, it is also common that a trader just put forward a limit order and let it queue in the order flow. After positive market movements, the best bid/ask price matches the order price, the order is likely to get filled if it has the top priority. If the orders are matched, this information is also recorded in the trade book, but with a filling price at the best bid/ask. If it fails to match, it continues to stay in the order book and deepen the order book flow. Besides these two active trading situations, there are plenty of orders silently being submitted or staying and can not find any corresponding records in the trade book at the same timestamp. 
 
 Two targets are provided in Section~\ref{sec: alpha} and Section~\ref{sec: aflag} which describe the trader behaviors in different situations. In the first section we introduce a continuous method to better understand the changing logic, while in the second section the real modeled target is shown and explained.
 
 \subsection{Aggressiveness} \label{sec: alpha}
-How aggressive a trader wants to submit orders and match existing orders is worth to discuss in this research. In order to quantify and measure the level, we introduce a metric called \textit{aggressiveness}, denoted by $\alpha$:
+How aggressive a trader wants to submit orders and match existing orders is worth to discuss in this research. The purpose of defining it is to provide insight into aggressive trade behavior. It is not used in the model itself. In order to quantify and measure the level, we introduce a metric called \textit{aggressiveness}, denoted by $\alpha$:
 
 \begin{equation}
     \alpha = \frac{P_F - P_B}{P_B}
     \label{eq: aggressiveness}
 \end{equation}
 
-$\alpha$ measures the aggressiveness of each trade. $P_F$ is the filling price at the time of the trade, and $P_B$ is the reference price used to determine whether a trade is aggressive. In this context, we set the benchmark as the previous midprice in the order book, i.e., the midprice from the most recent update before the current trade. For example, if a trader wants to buy and places an order above the midprice to grab existing ask orders, this behavior is considered aggressive. The comparison is made against the last observed midprice before the trader submitted the order. 
+$\alpha$ measures the aggressiveness of each trade. $P_F$ is the filling price at the time of the trade, and $P_B$ is the reference price used to determine whether a trade is aggressive. In this context, we set the benchmark as the previous mid-price in the order book, i.e., the mid-price from the most recent update before the current trade. For example, if a trader wants to buy and places an order above the mid-price to grab existing ask orders, this behavior is considered aggressive. The comparison is made against the last observed mid-price before the trader submitted the order. 
 
-As shown in Equation~\ref{eq: aggressiveness}, for instance, on the bid side, $\alpha$ is positive if the filling price is higher than the benchmark price. This indicates that a trader is willing to buy at a price above the benchmark. Conversely, $\alpha$ is negative if the trader buys at a price below the benchmark. Similarly, on the ask side, $\alpha$ is negative when a trader sells at a price lower than the benchmark, and positive when the selling price exceeds the benchmark. Therefore, an aggressive trade is defined when $\alpha$ is positive on the bid side and negative on the ask side. When there are no trade records, $\alpha$ is assigned a value of 0. The meanings of different $\alpha$ values are summarized in Table.~\ref{tb: alpha_meaning}:
+As shown in Equation~\ref{eq: aggressiveness}, for instance, on the bid side, $\alpha$ is positive if the filling price is higher than the benchmark price. This indicates that a trader is willing to buy at a price above the benchmark. Conversely, $\alpha$ is negative if the trader buys at a price below the benchmark. Similarly, on the ask side, $\alpha$ is negative when a trader sells at a price lower than the benchmark, and positive when the selling price exceeds the benchmark. Therefore, an aggressive trade is defined when $\alpha$ is positive on the bid side and negative on the ask side. When there are no trade records, $\alpha$ is assigned a value of 0. The meanings of different $\alpha$ values are summarized in Table.~\ref{tb: alpha_meaning}. It is important to note that $\alpha$ is introduced only to help understand the aggressive trade situation and is not used in the modeling process. 
+
 \begin{table}[h] 
     \centering 
     \begin{tabular}{lll} 
@@ -50,7 +51,9 @@ However, it is important to note that in the backtesting context at MN, we pay l
     \caption{Interpretation of $\bar{\alpha}$ in Different Contexts}
     \label{tb: aflag_meaning}
 \end{table}
-In Table.~\ref{tb: aflag_meaning}, we get binary flag $\bar{\alpha}$ which contains $1$ and $0$. It is reduced to a classification problem to solve by models, but the complexity of this issue stems from the class balance and feature dependencies. We will discuss them in the following contents in detail.
+In Table.~\ref{tb: aflag_meaning}, we get binary flag $\bar{\alpha}$ which contains $1$ and $0$. It is reduced to a classification problem to solve by models, but the complexity of this issue comes from the class imbalance and feature dependencies. We will discuss them in the following contents in detail.
+
+
 
 \section{Data Processing Methods}
 % This part describes the dataset used for machine learning training, and resampling and rescale methods
@@ -58,7 +61,7 @@ The original order book data and trade book data (Table~\ref{tb: order book data
 
 Specifically, in Section~\ref{sec: training data}, we provide basic dataset for model training, test, estimation and prediction, along with specific formulas for certain features. The theoretical solution for extreme class imbalance is established in Section~\ref{sec: class imbalance}.
 
-\subsection{Feature Engineering: Basic Dataset} \label{sec: training data}
+\subsection{Feature Engineering: Basic Dataset for Model Training} \label{sec: training data}
 In selecting which features to generate, we inherit indicators from original order book and trade book, then extend them to get further features. The target discussed in Section~\ref{sec: aflag} is included as the basic dataset.
 
 \begin{table}[h] 
@@ -121,7 +124,6 @@ $r_V$ represents the relative imbalance between the ask and bid sides, as define
     \label{eq: volume ratio}
 \end{equation}
 
-
 \subsection{Extreme Class Imbalance Solution} \label{sec: class imbalance}
 % What is class imbalance
 In a binary classification problem with data samples from two groups, class imbalance occurs when one class, the minority group, contains significantly fewer samples than the other class, the majority group \citep{johnson_survey_2019}. Extreme class imbalance refers to scenarios where the minority class represents less than 1\% of the total dataset \citep{leevy_survey_2018}. This level of imbalance brings significant challenges for machine learning algorithms, with strong bias results toward the majority class and may completely ignore the minority class in extreme cases. Extremely imbalanced datasets like this one are common in medicine and finance fields.
@@ -179,7 +181,9 @@ Anomaly filter methods are also applied to highlight the regions around aggressi
 \section{Prediction Model: An XGBoost-Enhanced Neural Hawkes Process Framework}
 This thesis proposes an XGBoost-enhanced Neural Hawkes Process framework combining class imbalance solutions, neural encoder, and stochastic modeling to predict aggressive trades under extreme class imbalance. The framework is designed to first resolve class imbalance through resampling in XGBoost, then integrate nonlinear and long-range feature dependencies, which are extracted from recurrent neural networks, into the calculation of intensity in Hawkes processes. 
 
-The framework begins with an XGBoost classifier trained to identify aggressive trade events from limit order book features displayed in Table~\ref{tb: overall dataset for training}. To address the extreme class imbalance in the dataset, KMeansSMOTE is applied during training to generate synthetic minority samples in a structure-aware manner, ensuring a more balanced and representative training set. The first-filtered output of the XGBoost model, alongside features, is then fed into a Gated Recurrent Unit (GRU), which acts as a historical market state encoder. The GRU transforms the inputs into a compact hidden state that captures nonlinear dependencies and long-range dynamics in condition of temporal logic ($T$) and market features ($S$, $M$, $V_A^{1}$, $V_A^{1}$, $\bar{\delta}_S$, $\bar{\delta}_M$, $\sigma_S$, $\sigma_M$, $r_V$). This hidden state is used to condition the intensity function $\lambda(t)$ of a neural Hawkes process. Unlike classical Hawkes models based on additive exponential kernels, the intensity here is dynamically modulated by the GRU output, allowing the model to flexibly capture evolving market microstructure behavior. As a result, the process becomes a conditional point process, where the estimation of parameters is informed by both structured and balanced output of the XGBoost model and the latent dynamics embedded in recent order book activity.
+To depict the general workflow of our framework, Figure~\ref{fig:data-flow-diagram} presents the overall workflow of our framework, combining both the training (estimation) phase and the testing phase. More detailed and clearly separated diagrams will be discussed in Section~\ref{sec:data-flow}. The framework begins with an XGBoost classifier trained to identify aggressive trade events from limit order book features displayed in Table~\ref{tb: overall dataset for training}. 
+
+To address the extreme class imbalance in the dataset, KMeansSMOTE is applied during training to generate synthetic minority samples in a structure-aware manner, ensuring a more balanced and representative training set. The first-filtered output of the XGBoost model, alongside features, is then fed into a Gated Recurrent Unit (GRU), which acts as a historical market state encoder. The GRU transforms the inputs into a compact hidden state that captures nonlinear dependencies and long-range dynamics in condition of temporal logic ($T$) and market features ($S$, $M$, $V_A^{1}$, $V_A^{1}$, $\bar{\delta}_S$, $\bar{\delta}_M$, $\sigma_S$, $\sigma_M$, $r_V$). This hidden state is used to condition the intensity function $\lambda(t)$ of a neural Hawkes process. Unlike classical Hawkes models based on additive exponential kernels, the intensity here is dynamically modulated by the GRU output, allowing the model to flexibly capture evolving market microstructure behavior. As a result, the process becomes a conditional point process, where the estimation of parameters is informed by both structured and balanced output of the XGBoost model and the latent dynamics embedded in recent order book activity.
 
 In the first stage, we employ XGBoost to predict $\bar{\alpha}$ on the full trading day using limit order book features in Table~\ref{tb: overall dataset for training}. To address the extreme class imbalance and get potential aggressive trade rows, we apply KMeansSMOTE before training. This first classifier aims to identify as many true trade points as possible (high recall) and increase the proportion of minor class in the output. The model filters out most of the non-aggressive instances (class 0) and provides a broad set of aggressive trade activity candidates. This output serves two purposes: it reduces the candidate space for aggressive trade prediction, and its feature importance guides the selection of input features for subsequent models.
 
@@ -187,7 +191,15 @@ In the second stage, we train a GRU-based recurrent neural network to get the hi
 
 In the final stage, we apply a neural Hawkes process to analyze a more dynamic estimation and prediction of aggressive trades. The Hawkes model captures the temporal clustering of aggressive trade events and demonstrates interpretable output in the form of aggressive and non-aggressive trade intensity and probability. This significantly compensates for the limited ability of machine learning models. We also incorporate a condition based on MN trade execution information: if an internal order is filled within certain milliseconds window, it increases the likelihood of a nearby aggressive trade. This step not only enhances the final accuracy and F1 score, but also produces a more interpretable, precise and inclusive prediction set.
 
-Overall, this three-stage framework effectively predicts rare aggressive trades by combining class imbalance solution, market states features, sequential memory, and temporal dependency modeling. It predicts the intensity and final pattern of aggressive and non-aggressive events. The following parts of the section elaborate each of the three components and discuss the combined contribution of the predictive framework.
+Overall, this framework effectively predicts rare aggressive trades by combining class imbalance solution, market states features, temporal dependency, and clustering modeling. It predicts the intensity and final pattern of aggressive and non-aggressive events. The following parts of the section elaborate each of the three components and discuss the combined contribution of the predictive framework.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/data_flow1.png}
+    \caption{Data flow of the full pipeline from raw data to final prediction, combining both training and testing stages.}
+    \label{fig:data-flow-diagram}
+\end{figure}
+
 
 \subsection{XGBoost with KMeansSMOTE Filtering (KM-XGBoost)}
 XGBoost is a tree-based ensemble learning method that builds a sequence of decision trees to minimize a specified loss function. With a gradient boosting logic, each new tree is trained on the residual errors of the current model, effectively correcting its mistakes by following the negative gradient of the loss. 
@@ -522,10 +534,18 @@ It is important to note that this modeling approach gives interpretable results,
 
 
 % \section{Whole Framework}
+\section{Overall Data Flow} \label{sec:data-flow}
+First, we provide a more detailed explanation of Figure~\ref{fig:data-flow-diagram}, which shows the complete data flow of the framework. It includes KMeansSMOTE XGBoost and the Neural Hawkes Process. On the left side, training data A1 from Day 1 is used to train the KM-XGBoost classifier. KMeansSMOTE is applied to improve class imbalance. Normally the final training dataset contains  over 400,000 rows and 13 columns. The trained model is then used to filter aggressive trades on window-based (like 30 minutes or 1 hour) test data B1 from Day 2, producing the output data B2.
+
+On neural Hawkes process side, estimated data A2 is functioned by an anomaly detection for class balance. Then it is processed by a GRU model to extract hidden states. After that, estimation of the parameters is implemented. The filtered data B2 from the XGBoost stage is used to compute the event intensities on B2 timestamps. These intensities are passed through Ogata's thinning algorithm to promote the final aggressive trade predictions.
+
+The final prediction result is evaluated against the true events using various metrics, including dynamic time warping, Wasserstein distance, Allan factor, Ripley's K and L functions, autocorrelation (ACF/PACF), and KS test. These metrics cover different dimensions such as temporal dependency, clustering, and distribution.
+
+Specially, 
 
 
-\section{Evaluation Metrics}
-This section introduces the metrics used to evaluate how well the predicted aggressive trades resemble the actual ones in the market. Traditional classification metrics, such as precision and recall, assume that each predicted event must match one true event exactly. However, in our case, we care more about the temporal patterns and distributional behavior of events. For this reason, we include other metrics that can measure similarity in terms of clustering, alignment, and statistical distribution.
+\section{Evaluation Metrics} \label{sec:evaluation-metrics}
+This section introduces the metrics useful to evaluate how well the predicted aggressive trades resemble the actual ones in the market. Traditional classification metrics, such as precision and recall, assume that each predicted event must match one true event exactly. However, in our case, MN accepts that the prediction of an aggressive trade does not have to be exactly on the timestamp in the data, but can be in an interval around this moment. Thus, We care more about the temporal patterns and distributional behavior of events. For this reason, we include other metrics that can measure similarity in terms of clustering, alignment, and statistical distribution.
 
 As shown in Table~\ref{tb:Evaluation Metrics}, we organize the evaluation into five categories: classification-based metrics, temporal dependency metrics, clustering metrics, autocorrelation, distributional statistical tests.
 
