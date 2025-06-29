@@ -1,7 +1,6 @@
+\documentclass[a4paper,12pt,twoside]{report}
+\renewcommand{\baselinestretch}{1}
 
-% THIS IS THE MAIN FILE (i.e. compile this file, compiling the others directly won't work)
-%
-\documentclass[a4paper,10pt,twoside]{report}
 \usepackage{titlesec}
 
 %all the other includes etc. are done in the thesis.sty file.
@@ -11,8 +10,8 @@
 % These commands need to be defined in order to produce a correct and personalized document
 %
 \newcommand{\shortdoctitle}{Improving Backtesting Environment}
-\newcommand{\doctitle}{Aggressive Trade Prediction Using XGBoost-Enhanced Neural Hawkes Process}
-\newcommand{\docsubtitle}{Under Extreme Class Imbalance, with Application in the FX Spot Market}
+\newcommand{\doctitle}{Aggressive Trade Prediction in the Foreign Exchange Market using XGBoost-Enhanced Neural Hawkes Process}
+% \newcommand{\docsubtitle}{Under Extreme Class Imbalance, with Application in the FX Spot Market}
                        
 \newcommand{\me}{Jiaxuan Zhu}
 \newcommand{\stnumbr}{2838063}
@@ -20,13 +19,6 @@
 Foreign Exchange Market, Algorithmic Execution}
 
 \newcommand{\customDate}{February 10, 2025}
-
-%Be sure to use all the titles for your committee members!!! (their names show up on the very first page!)
-%\newcommand{\firstCommitteeMember}{$<$Ronald de Vlaming, Erwin Hazeveld$>$}
-
-
-
-
 \author{\me}
 
 %
@@ -40,8 +32,7 @@ Foreign Exchange Market, Algorithmic Execution}
     pdfkeywords={\keywords}}
 
 
-\makeglossaries
-\input{appendices/glossary.tex}
+
 
 \makeatletter
 \@removefromreset{page}{chapter}
@@ -52,10 +43,11 @@ Foreign Exchange Market, Algorithmic Execution}
 \begin{document}
 \renewcommand\bibname{References}
 %use this include for PDF and distribution versions
-\pagenumbering{roman}
+%\pagenumbering{roman}
 \include{titlepage}
 
 \normalsize
+\input{chapters/abstract.tex}
 
 \newpage
 
@@ -72,25 +64,37 @@ Foreign Exchange Market, Algorithmic Execution}
 
 %\clearemptydoublepage
 
-\tableofcontents  
-\pagenumbering{arabic}
+\hypersetup{linkcolor=.}
+\tableofcontents 
+\listoffigures
+\listoftables
+\hypersetup{linkcolor=blue}
+
+
+%\pagenumbering{arabic}
 \input{chapters/0Introduction}
 
-%\input{chapters/1Literature}
+\input{chapters/1Business}
 
-\input{chapters/2Preliminary}
+\input{chapters/2Literature}
 
-\input{chapters/3Methodology}
+\input{chapters/3Data}
 
-\input{chapters/4Experiments}
+\input{chapters/4Methodology}
 
-\input{chapters/5Conclusion_Discussion}
+\input{chapters/5Experiments}
 
+\input{chapters/6ConcDis}
+
+
+%\makeglossaries
+\input{appendices/glossary.tex}
 \printglossary[type=\acronymtype, title=Acronyms]
 \printglossary
 
 %Choose a good bibliography style, plain would do often, but these might be nice too
 %\bibliographystyle{these}
+\bibliographystyle{plainnat}
 \bibliography{references}
 
 \newpage
