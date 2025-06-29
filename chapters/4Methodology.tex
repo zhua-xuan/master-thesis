@@ -102,7 +102,7 @@ The last five features ($\bar{\delta}_S$, $\bar{\delta}_M$, $\sigma_S$, $\sigma_
     \label{eq: midprice change} 
 \end{equation}
 
-Mid-price realized volatility affects order flows \citep{LO2010213}, thus $\sigma_M$ is used to depict the variability of mid-price changes. As defined in Equation~\ref{eq: midprice vola} and \ref{eq: spread vola}, standard deviation of mid-price changes and spread changes are calculated over a rolling window of 50 ticks. Spread factor $\sigma_S$ is also included because it reflects the consistency and variability of liquidity conditions.
+Mid-price realized volatility affects order flows \citep{OrderAggressiveness2010}, thus $\sigma_M$ is used to depict the variability of mid-price changes. As defined in Equation~\ref{eq: midprice vola} and \ref{eq: spread vola}, standard deviation of mid-price changes and spread changes are calculated over a rolling window of 50 ticks. Spread factor $\sigma_S$ is also included because it reflects the consistency and variability of liquidity conditions.
 
 \begin{equation}
     \sigma_{S_t} = \sqrt{\frac{1}{49}\sum_{i=0}^{48}\left((S_{t - i}-S_{t - i - 1})-\bar{\delta}_{S_t}\right)^2}
@@ -336,7 +336,7 @@ In our study, I adopt a GRU architecture instead of the LSTM structure used by \
 
 On the one hand, the LSTM-based approach is designed to handle a large and diverse set of 12 LOB event types. This level of event complexity and inter-type interaction needs a more complicated but also heavier architecture like LSTM. In contrast, our setting focuses on a simpler and more specific prediction task. Our training dataset contains just two types of market scenarios (aggressive vs. non-aggressive trades). I do not simulate all LOB events but instead focus on binary classification. Therefore, the computational burden of LSTM is unnecessary, and the more efficient GRU offers a faster and equally expressive alternative for our goal.
 
-On the other hand, \cite{lalor2025eventbasedlimitorderbook} rely on stock data from LOBSTER. It is relatively lower tick frequencies compared to higher-frequent FX spot markets. As a result, fast and robust convergence is critical. GRU is a more suitable RNN to predict aggressive trade pattern in the high frequency FX spot market.
+On the other hand, \cite{lalor_event-based_2025} relied on stock data from LOBSTER. It is relatively lower tick frequencies compared to higher-frequent FX spot markets. As a result, fast and robust convergence is critical. GRU is a more suitable RNN to predict aggressive trade pattern in the high frequency FX spot market.
 
 
 % why hidden states matter and math formulas
