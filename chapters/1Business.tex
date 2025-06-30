@@ -13,7 +13,8 @@ The direction of price is an important aspect of the order book flow. The \texti
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\linewidth]{figures/order_book_t.png}
-    \caption{Limit Order Book Flow at Time t}
+    \caption{Limit Order Book Flow at Time $t$} 
+    \caption*{\textit{Note:} The structure of the limit order book at time $t$, includes the first five levels on both the bid side ($P_B^1$ to $P_B^5$, in blue) and ask side ($P_A^1$ to $P_A^5$, in red). Each bar represents the volume of outstanding limit orders at the corresponding price level. The size of bars shows how large is the volume. $P_B^1$ is the best (highest) bid price, and $P_A^1$ is the best (lowest) ask price. The spread $S$ is defined as $P_A^1 - P_B^1$, and the midpoint $M$ is the average of the best bid and ask prices. Bid prices decrease with level, and ask prices increase. }
     \label{fig: order_book_t}
 \end{figure}
 
@@ -42,6 +43,7 @@ To illustrate the order book flow more clearly, Figure~\ref{fig: order_book_t_1}
     \centering
     \includegraphics[width=0.8\linewidth]{figures/order_book_t_1.png}
     \caption{Limit Order Book Flow at Time t+1}
+    \caption*{\textit{Note:} The state of the limit order book at time $t+1$, follows the submission of a passive buy limit order at the best bid price level $P_B^1$. The order joins the existing queue without changing the current bid or ask prices, $\{P_B^i\}_{i=1}^5$ and $\{P_A^i\}_{i=1}^5$. The order remains active until it is matched by an incoming market sell order or cancelled. At $P_A^1$, a market order consumes the bottom order due to price-time priority.}
     \label{fig: order_book_t_1}
 \end{figure}
 
@@ -51,18 +53,18 @@ Moreover, when a buy (respectively, sell) order is placed between best bid (resp
 
 Other actions, such as canceling, changing, or placing new orders, along with order filling, constantly update the order book, influencing price movements and order book dynamics.
 
-\subsection{Stylized Facts} \label{cp: facts}
-%heavy-tailed, volatility clustering, long memory in order flow, autocorrelation, Brownian motion of mid-price
-As mentioned at the end of Chapter 1.1.1, the limit order book exhibits various statistical properties which are the so-called \textit{stylized facts}. \cite{vyetrenko_get_2019} reviewed a wide range of stylized facts, but I focus on a concise subset that is the most relevant to limit order book simulation:
-\begin{enumerate}
-    \item Arrival rates: Orders do not arrive randomly but follow patterns. The frequency of order arrivals follows statistical patterns and is commonly modeled using point processes.
-    \item Autocorrelation of price changes: Price changes tend to slightly reverse in the short term due to bid-ask spread effects, but over longer periods, price changes are mostly independent.
-    \item Volatility clustering: When prices move a lot in one period, they tend to keep moving a lot in the next. When price changes are small, they stay small for a while.
-    \item Heavy-tailed distributions: The distribution of price returns, order sizes, and waiting times exhibits heavy tails. Extreme values price movements happen more often than expected in a normal distribution.
-    \item Average shape of the book: The number of buy and sell orders at different price levels is not balanced. Some price levels have more orders than others, creating a typical shape.
-    \item Price paths: Prices do not move randomly but follow patterns influenced by order flow. Over long periods, mid-price is convergent to a Brownian motion in a complete limit order book. 
-    \item Long memory in order flow: Buy and sell orders are not placed randomly. The way orders are placed, canceled, and executed depends on past order activity and follows long-term patterns.
-\end{enumerate}
+% \subsection{Stylized Facts} \label{cp: facts}
+% %heavy-tailed, volatility clustering, long memory in order flow, autocorrelation, Brownian motion of mid-price
+% As mentioned at the end of Chapter 1.1.1, the limit order book exhibits various statistical properties which are the so-called \textit{stylized facts}. \cite{vyetrenko_get_2019} reviewed a wide range of stylized facts, but I focus on a concise subset that is the most relevant to limit order book simulation:
+% \begin{enumerate}
+%     \item Arrival rates: Orders do not arrive randomly but follow patterns. The frequency of order arrivals follows statistical patterns and is commonly modeled using point processes.
+%     \item Autocorrelation of price changes: Price changes tend to slightly reverse in the short term due to bid-ask spread effects, but over longer periods, price changes are mostly independent.
+%     \item Volatility clustering: When prices move a lot in one period, they tend to keep moving a lot in the next. When price changes are small, they stay small for a while.
+%     \item Heavy-tailed distributions: The distribution of price returns, order sizes, and waiting times exhibits heavy tails. Extreme values price movements happen more often than expected in a normal distribution.
+%     \item Average shape of the book: The number of buy and sell orders at different price levels is not balanced. Some price levels have more orders than others, creating a typical shape.
+%     \item Price paths: Prices do not move randomly but follow patterns influenced by order flow. Over long periods, mid-price is convergent to a Brownian motion in a complete limit order book. 
+%     \item Long memory in order flow: Buy and sell orders are not placed randomly. The way orders are placed, canceled, and executed depends on past order activity and follows long-term patterns.
+% \end{enumerate}
 
 
 \subsection{Challenges in Limit Order Book}
@@ -134,36 +136,34 @@ Each child order follows a randomized start time to reduce signaling risk. A ran
 
 The execution of each child order follows an adaptive approach, starting with a passive strategy and increasing aggressiveness over time. The aggressiveness is controlled by three parameters: $\alpha$, $\beta$, and $\gamma$. The order initially starts at $\alpha$ and, if unfilled, transitions to $\alpha + \beta$ after a fraction $t_{\beta}$ of its duration. If the order remains unfilled, the price fraction further increases to $\alpha + \beta + \gamma$ at time $t_{\gamma}$.
 
-\begin{table}[h]
-    \centering
-    \begin{tabular}{|c|l|}
-        \hline
-        \textbf{Symbol} & \textbf{Description} \\ \hline
-        $\alpha$ & Initial price fraction \\ \hline
-        $\beta$ & Increment for the second phase \\ \hline
-        $\gamma$ & Increment for the third phase \\ \hline
-        $t_{\beta}$ & Time fraction before increasing aggressiveness \\ \hline
-        $t_{\gamma}$ & Time fraction before final aggressiveness step \\ \hline
-    \end{tabular} \label{tb:TWAP parameters}
-    \caption{TWAP execution parameters}
-\end{table}
+% \begin{table}[h]
+%     \centering
+%     \begin{tabular}{|c|l|}
+%         \hline
+%         \textbf{Symbol} & \textbf{Description} \\ \hline
+%         $\alpha$ & Initial price fraction \\ \hline
+%         $\beta$ & Increment for the second phase \\ \hline
+%         $\gamma$ & Increment for the third phase \\ \hline
+%         $t_{\beta}$ & Time fraction before increasing aggressiveness \\ \hline
+%         $t_{\gamma}$ & Time fraction before final aggressiveness step \\ \hline
+%     \end{tabular} \label{tb:TWAP parameters}
+%     \caption{TWAP execution parameters}
+%     \caption*{\textit{Note:}}
+
+% \end{table}
 
 In the passive mode, orders begin at $\alpha$ and transition through all phases. The neutral mode omits the passive phase and starts at $\alpha + \beta$, while the aggressive mode starts directly at the highest level of aggressiveness. This approach ensures the order is executed in a controlled manner while adapting to market conditions, reducing the risk of price deviation and improving execution efficiency.
+
+Figure~\ref{fig:order placement} shows the definition of order aggressiveness of Algo.
 
 % order placement picture in the ppt
 \begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{figures/order placement.png}
-    \caption{Order placement of Algo}
+    \caption{Order placement for buyers of Algo}
+    \caption*{\textit{Note:} Demonstration of traders who want to buy orders. Aggressive order is placed at the best ask. Neutral order is placed at the mid-price or best bid. Passive order is placed near the best bid.}
     \label{fig:order placement}
 \end{figure}
-
-\noindent \textbf{Legend:}
-\begin{itemize}
-    \item Aggressive Order: Placed at the best ask.
-    \item Neutral Order: Placed near the mid-price.
-    \item Passive Order: Placed near the best bid.
-\end{itemize}
 
 The other one is Float algorithm. Different from TWAP, it lets the child order 'float' at a specific price level until executed. This approach reduces market impact and lowers spread costs. Since execution speed is not a priority, the algorithm is categorized as a \textit{liquidity-seeking} strategy. This algorithm allows child orders wait passively at a predefined level in the order book and adjusts its position dynamically.
 
@@ -206,12 +206,11 @@ The venue submission algorithm has experienced four stages of evolution. Initial
     \centering
     \includegraphics[width=0.8\linewidth]{figures/venue_submission_1.png}
     \caption{Initial venue submission method}
+    \caption*{\textit{Note:} First version of parallel execution split the parent order into a set of child orders. Then child orders are sent to different venues after comparison of the bid/ask prices.}
     \label{fig:venue_submission_1}
 \end{figure}
 
-A later study \citep{romy2023} found that randomly selecting a venue for each child order resulted in better performance. This randomization changed the systematic disadvantages of initial method, leading a better execution performance.
-
-Further refinement is the use of \gls{parallel execution}, which significantly improved the performance of venue submission. Instead of submitting a single child order at a time, the algorithm places multiple child orders simultaneously across different venues. 
+A later study \citep{romy2023} found that randomly selecting a venue for each child order resulted in better performance. This randomization changed the systematic disadvantages of initial method, leading a better execution performance. Further refinement is the use of \gls{parallel execution}, which significantly improved the performance of venue submission. Instead of submitting a single child order at a time, the algorithm places multiple child orders simultaneously across different venues. 
 
 The first version of parallel execution split the parent order into multiple secondary parent orders, each assigned to a specific venue. Figure~\ref{fig:venue_submission_2} shows its execution process. If only one secondary order remains active, the algorithm reverts to the previous random execution method to prevent delays and ensure timely order completion. 
 
@@ -219,6 +218,7 @@ The first version of parallel execution split the parent order into multiple sec
     \centering
     \includegraphics[width=0.8\linewidth]{figures/venue_submission_2.png}
     \caption{Parallel execution strategy version 1}
+    \caption*{\textit{Note:} The parent order is split into two secondary orders. Each secondary order creates its own child order for execution. The two child orders are processed in parallel at Venue 1 and Venue 2. If only one secondary order remains active, the strategy switches to a random single-venue execution to reduce delay and complete the order on time.}
     \label{fig:venue_submission_2}
 \end{figure}
 
@@ -227,6 +227,7 @@ Building upon this, the second version of parallel execution adjusts order execu
     \centering
     \includegraphics[width=0.8\linewidth]{figures/venue_submission_3.png}
     \caption{Parallel execution strategy version 2}
+    \caption*{\textit{Note:} Three monitoring stages, called Pillars, each represents a predefined time point (e.g., 10, 20, 30 seconds) where venue performance is evaluated. The triggers (volume, price and spread) are used to decide the next action. This version reacts to real-time market conditions compared to version 1 and is currently used in the Algo.}
     \label{fig:venue_submission_3}
 \end{figure}
 
@@ -234,24 +235,26 @@ Building upon this, the second version of parallel execution adjusts order execu
 
 
 \section{Back Testing}
-Backtesting is a fundamental method used in quantitative trading to evaluate the performance of trading strategies based on historical market data. By simulating past trading conditions, backtesting provides evaluation of a strategy's performances before using it in live markets. A reliable backtesting environment should be both \textbf{realistic} and \textbf{dynamic}.
+Backtesting is a fundamental method used in quantitative trading to evaluate the performance of trading strategies based on historical market data. By predicting past trading conditions, backtesting provides evaluation of a strategy's performances before using it in live markets. A reliable backtesting environment should be both \textbf{realistic} and \textbf{dynamic}.
 
-MN has developed a back testing environment for FX spot trading, called \textit{FX Smart Execution Backtester}. This engine is designed to assess changes in execution strategy parameters, including the optimization of child order aggressiveness and the changes of order information. 
+Companies have various systems for backtesting. MN has developed a back testing environment for FX spot trading, called \textit{FX Smart Execution Backtester} (referred to as the \textit{backtester} hereafter). This engine is designed to assess the performance of changes in execution strategy parameters, including the optimization of child order aggressiveness and the changes of order information. 
 
-The backtester aims to make use of complete market data:
-\begin{enumerate}
-    \item Historical data: Past \gls{lob} from LMAX and CBOE stored in the Snowflake.
-    \item Simulated data: Synthetic \gls{lob} generated to test hidden aggressive events beyond observation.
-    \item Model data: Data produced by algorithmic models to enhance market simulations.
-\end{enumerate}
-Currently, the backtester only uses historical \gls{lob} to execute testing of strategies. The execution engine processes order updates, places child orders at certain timestamps, and decides the rules governing order matching. The order matching rule is now based on filling possibility. The mechanism is:
+% The backtester aims to make use of complete market data:
+% \begin{enumerate}
+%     \item Historical data: Past \gls{lob} from LMAX and CBOE stored in the Snowflake.
+%     \item Simulated data: Synthetic \gls{lob} generated to test hidden aggressive events beyond observation.
+%     \item Model data: Data produced by algorithmic models to enhance market simulations.
+% \end{enumerate}
+Currently, the backtester only uses historical LOB data to execute testing of strategies. The execution engine processes order updates, places child orders at certain timestamps, and decides the rules of order matching. The order matching rule is now based on filling possibility depending on spread. The mechanism is:
 \begin{itemize}
     \item Given an order information, including price, volume, trading algorithm, starting time and backtesting time range.
-    \item Use best bid-ask spread to decide the filling chance of orders. As can be seen in Table~\ref{tab:filling_spread}, the narrower the spread, the higher the chance of an order being filled.
+    \item Use best bid-ask spread to decide the filling chance of each order. As can be seen in Table~\ref{tab:filling_spread}, the narrower the spread, the higher the chance of an order being filled.
     \item Execute the order based on historical order book data.
 \end{itemize} 
     \begin{table}[h]
         \centering
+        \caption{Filling Probability and Bid-Ask Spread}
+        \caption*{\textit{Note:} The spread values are in pip units, where $S=1$ corresponds to $0.0001$. Thus, $S \geq 5$ means $S \geq 0.0005$. When $S \geq 5$, the possibility of orders getting filled is $0$. The same as the following situations. When $S < 1$, the filling possibility is the highest ($20\%$).}
         \begin{tabular}{c|c|c|c|c|c|c}
             \hline
             Spread & $S \geq$ 5 & $S \geq$ 4 & $S \geq$ 3 & $S \geq$ 2 & $S \geq$ 1 & $S <$ 1 \\
@@ -259,7 +262,6 @@ Currently, the backtester only uses historical \gls{lob} to execute testing of s
             Possibility of orders being filled & 0\% & 0.50\% & 1\% & 2\% & 5\% & 20\% \\
             \hline
         \end{tabular}
-        \caption{Filling Probability and Bid-Ask Spread. Note: The spread values are in pip units, where $S=1$ corresponds to $0.0001$. Thus, $S \geq 5$ means $S \geq 0.0005$.}
         \label{tab:filling_spread}
     \end{table}
 

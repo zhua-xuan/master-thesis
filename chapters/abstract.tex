@@ -1,11 +1,20 @@
 \begin{abstract}
-\noindent This thesis improves the high-frequency backtesting environment for Foreign Exchange markets by predicting realistic and dynamic aggressive trade patterns. The model is a novel XGBoost-Enhanced Neural Hawkes Process. It combines a neural Hawkes process with XGBoost to predict the occurance of aggressive trade based on the information in the limit order book.
+\noindent 
+% This thesis improves the high-frequency backtesting environment for Foreign Exchange markets by predicting realistic and dynamic aggressive trade patterns. The model is a novel XGBoost-Enhanced Neural Hawkes Process. It combines a neural Hawkes process with XGBoost to predict the occurance of aggressive trade based on the information in the limit order book.
 
-The main contribution is that the new framework enhances the standard Hawkes process by adding an XGBoost classifier and a neural kernel from GRU. The XGBoost first-filter solves the extreme trade and non-trade imbalance in the limit order book. The GRU neural kernel embeds the dynamic market features. The neural Hawkes process captures temporal dependency and clustering, and provides an interpretable outcome of when aggressive trades are likely to occur in the order flow. Unlike previous backtesting mechanism which uses static order filling rates, this approach gives more realistic and dynamic prediction of order filling status.
+% The main contribution is that the new framework enhances the standard Hawkes process by adding an XGBoost classifier and a neural kernel from GRU. The XGBoost first-filter solves the extreme trade and non-trade imbalance in the limit order book. The GRU neural kernel embeds the dynamic market features. The neural Hawkes process captures temporal dependency and clustering, and provides an interpretable outcome of when aggressive trades are likely to occur in the order flow. Unlike previous backtesting mechanism which uses static order filling rates, this approach gives more realistic and dynamic prediction of order filling status.
 
-Results show that the model captures the complex dynamics and patterns of aggressive trade perfectly. This can support better order filling methods for trading strategy backtesting.
+% Results show that the model captures the complex dynamics and patterns of aggressive trade perfectly. This can support better order filling methods for trading strategy backtesting.
 
-This work is relevant for those who want more realistic, dynamic and interpretable backtesting tools. Future work could extend the model to multi-asset settings or include more advanced market features.\\[1ex]
-\noindent\textbf{Key words: } Limit Order Book, Prediction, XGBoost, GRU, Hawkes Process,
-Foreign Exchange Market, Algorithmic Execution. 
+% This work is relevant for those who want more realistic, dynamic and interpretable backtesting tools. Future work could extend the model to multi-asset settings or include more advanced market features.
+
+
+This thesis improves backtesting environments for foreign exchange markets by predicting when aggressive trades will occur. The main problem is that when executing trades, aggressive traders often take passive orders out of the order book, but these events are difficult to predict. Aggressive trades are rare in the context of the overall order flow, cluster together in time, and depend on market conditions. Current backtesting systems use simple rules to decide when orders get filled, such as fixed probabilities based on bid-ask spreads. These methods do not capture the real dynamics of how trades happen in markets. When backtesting systems cannot predict these aggressive trades, the backtesting results underestimate filling rates and provide misleading performance results.
+
+This study develops a novel framework with two stages to predict aggressive trades. First, an XGBoost filter addresses the extreme class imbalance problem. Second, a neural network captures embedded market features over time and passes the kernel to a Hawkes process, creating a neural Hawkes process. 
+
+Results show that the model successfully captures the temporal dependencies, clustering patterns and statistical distributions of aggressive trades. The framework provides more realistic and dynamic backtesting results compared to traditional methods. This helps institutional investors develop better trading strategies and reduce execution costs. The approach can be applied to other high-frequency trading environments where rare events influence future market behavior. \\[1ex]
+%This combination shows how aggressive trades are influenced by market conditions, how they cluster together and influence each other.
+
+\noindent\textbf{Key words: } Aggressive Trade Prediction, Neural Hawkes Process, Limit Order Book, Backtesting, XGBoost, Extreme Class Imbalance, High-Frequency Trading, Foreign Exchange Markets.
 \end{abstract}
