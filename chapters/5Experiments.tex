@@ -39,12 +39,13 @@ Table~\ref{tab:xgb-confusion-km} shows the confusion matrix. 4,011 are predicted
 
 Moreover, Table~\ref{tab:xgb-classification-report-km} shows the detailed classification report. I mainly care about the prediction performance for class 1, since this is the main goal of the whole research. The precision of class 0 is not meaningful here because the original data is extremely imbalanced. Although the precision for class 1 is still very low at 0.0035, the recall reaches 0.5652. This means the model finds sufficient true trades under the model with oversampling. This makes preparation for next neural Hawkes process.
 
+In Table~\ref{tab:xgb-noKM}, without KMeansSMOTE, even if I reach the same recall, the precision is even worse (only 0.0019). This value means almost all predicted class 1 are wrong. The F1-score is just 0.0038, which is only half of the score from XGBoost with KMeansSMOTE. Also, the filter effect is weaker. More lines (5,065) are left in the result, which makes the next detection step slower and more difficult. So using KMeansSMOTE helps not only improve model performance but also makes the pipeline more efficient.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/aflag_XGBoost_181330.png}
-    \caption{Comparison of true vs. predicted $\bar{\alpha}$ from XGBoost with KMeansSMOTE. 
-    The blue '+' markers show the true class labels, and the orange '+' markers show the predicted ones. To make the plot easier to read, the predicted values are moved down by 0.05 on the y-axis. This small shift helps to see clearly how well the predictions match the true labels.
+    \caption{Comparison of true vs. predicted $\bar{\alpha}$ from XGBoost with KMeansSMOTE} 
+    \caption*{\textit{Note:} The blue '+' markers show the true class labels, and the orange '+' markers show the predicted ones. To make the plot easier to read, the predicted values are moved down by 0.05 on the y-axis.  The prediction catches most of the true values.
     }
     \label{fig:xgb-pred-vs-true-km}
 \end{figure}
@@ -52,6 +53,7 @@ Moreover, Table~\ref{tab:xgb-classification-report-km} shows the detailed classi
 \begin{table}[H]
     \centering
     \caption{Confusion matrix of XGBoost with KMeansSMOTE}
+    \caption*{\textit{Note:} The confusion matrix from the XGBoost model trained with KMeansSMOTE to handle class imbalance. The model correctly predicts 4,001 true negatives (class 0) and 13 true positives (class 1). It misclassifies 3,726 instances as aggressive trades and misses 10 true aggressive events. In total, 3,739 rows are predicted as class 1, which is 51.75\% of the original test set size of 7,750. This filtered output keeps most of the important aggressive trade candidates and reduces data size for the next step in the neural Hawkes process.}
     \label{tab:xgb-confusion-km}
     \begin{tabular}{lcc}
         \toprule
@@ -62,9 +64,12 @@ Moreover, Table~\ref{tab:xgb-classification-report-km} shows the detailed classi
         \bottomrule
     \end{tabular}
 \end{table}
+
 \begin{table}[H]
     \centering
     \caption{Classification report of XGBoost with KMeansSMOTE}
+    \caption*{\textit{Note:} The classification performance of the XGBoost model trained with KMeansSMOTE. The main focus is on class 1, which represents aggressive trades. Although the precision for class 1 is very low (0.0035), the recall reaches 0.5652, meaning the model captures more than half of the true aggressive events. This is important because the data is extremely imbalanced, and the goal is to find as many true trades as possible for the next stage in the neural Hawkes process. The precision of class 0 is not meaningful due to the imbalance. Overall accuracy is 51.79\%, but recall for class 1 is the key metric here.}
+
     \label{tab:xgb-classification-report-km}
     \begin{tabular}{lcccc}
         \toprule
@@ -77,12 +82,11 @@ Moreover, Table~\ref{tab:xgb-classification-report-km} shows the detailed classi
         \bottomrule
     \end{tabular}
 \end{table}
-\newpage
-Without KMeansSMOTE, even if I reach the same recall, the precision is even worse (only 0.0019). That means almost all predicted class 1 are wrong. The F1-score is just 0.0038, which is only half of the score from XGBoost with KMeansSMOTE. Also, the filter effect is weaker. More lines (5,065) are left in the result, which makes the next detection step slower and more difficult. So using KMeansSMOTE helps not only improve model performance but also makes the pipeline more efficient.
 
 \begin{table}[H]
     \centering
     \caption{Confusion matrix of XGBoost without KMeansSMOTE}
+    \caption*{\textit{Note:} The classification performance of the XGBoost model without using KMeansSMOTE. When the recall for class 1 remains similar (0.5881), the precision drops to 0.0019. The F1-score is 0.0038, which is only half of the score obtained when using KMeansSMOTE. In addition, the model leaves 5,065 rows in the output, which reduces filtering effectiveness and increases the computational burden for the next detection step.}
     \label{tab:xgb-noKM}
     \begin{tabular}{lccc}
         \toprule
@@ -93,22 +97,23 @@ Without KMeansSMOTE, even if I reach the same recall, the precision is even wors
     \end{tabular}
 \end{table}
 
-These results show that KMeansSMOTE gives significant improvement when dealing with extreme class imbalance, especially in terms of F1-score. I can also infer from the classification evaluation that single XGBoost is not enough for the prediction task even with resampling methods. The large set of candidate points predicted at this stage will be passed to the next neural Hawkes model, which helps to further clean and refine the aggressive trade signals. 
+In conclusion, these results show that KMeansSMOTE gives significant improvement when dealing with extreme class imbalance, especially in terms of F1-score. I can also infer from the classification evaluation that single XGBoost is not enough for the prediction task even with resampling methods. The large set of candidate points predicted at this stage will be passed to the next neural Hawkes model, which helps to further clean and refine the aggressive trade signals. 
 
 \newpage
 
 %------------- Neural Hawkes process -------------
 \subsection{Neural Hawkes Process Results}
-I use the GRU model to generate hidden states as a neural kernel, which are then used in the Hawkes process. In this stage, I refer to the training process as estimation and testing process as prediction, since it involves fitting a Hawkes process. The estimation (training) is performed on the dataset from January 31, 2025, between 10:00:00 and 15:59:59. This period is the same as the XGBoost training set, but the data is filtered using the anomaly detection function in Algorithm~\ref{al: window-based} to reduce class imbalance, so the class ratio aligns with the output from XGBoost.
+I use the GRU model to generate hidden states as a neural kernel, which are then used in the Hawkes process. In this stage, I refer to the training process as estimation and testing process as prediction, since it involves fitting a Hawkes process. The estimation (training) is performed on the dataset from January 31, 2025, between 10:00:00 and 15:59:59. This period is the same as the XGBoost training set, but the data is filtered using the XGBoost filter to reduce class imbalance.
 
-In the estimation stage, the GRU is trained as mentioned in Chapter~\ref{chapter:methodology} and hidden states $h_t$ are extracted. For estimation in next Hawkes process, Figure~\ref{} depicts the hidden states generated from GRU.
+In the estimation stage, the GRU is trained as mentioned in Chapter~\ref{chapter:methodology} and hidden states $h_t$ are extracted. For estimation in next Hawkes process, Figure~\ref{fig:train-hidden-state} depicts the hidden states generated from GRU.
 
 In the estimation stage, the GRU is trained as described in Chapter~\ref{chapter:methodology}, and the hidden states $h_t$ are extracted for each time step. These hidden states serve as a compressed representation of the input dynamics and are used as input features for the Hawkes process parameter estimation. The hidden states are transformed using the function $\log(1 + e^{h_k(t)})$ as in Formula~\ref{eq:intensity}. Figure~\ref{fig:train-hidden-state} depicts the hidden states generated from the GRU, separated by class. The top panel shows the hidden state for class 0 (non-aggressive events), while the bottom panel displays the hidden state for class 1 (aggressive events). Compared to class 0, the hidden state for class 1 shows smoother trends and more distinct spikes, which may help the Hawkes process distinguish aggressive event patterns more effectively in the next stage.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\linewidth]{figures/train-hidden-state.png}
-    \caption{Hidden state for estimation dataset of each event type. The top panel shows the hidden state for class 0 (non-aggressive events), while the bottom panel displays the hidden state for class 1 (aggressive events).}
+    \caption{Hidden state for estimation dataset of each event type}
+    \caption*{\textit{Note:} The top panel shows the hidden state for class 0 (non-aggressive events), while the bottom panel displays the hidden state for class 1 (aggressive events).}
     \label{fig:train-hidden-state}
 \end{figure}
 
@@ -117,6 +122,7 @@ These hidden states are passed to the Hawkes intensity formula in Equation~\ref{
 \begin{table}[H]
     \centering
     \caption{Estimated Parameters of the Neural Hawkes Process}
+    \caption*{\textit{Note:} The estimated parameters of the neural Hawkes process. The baseline intensity $\mu$ shows that non-aggressive trades (Type 0) are more likely to occur by default than aggressive trades (Type 1). The excitation matrix $\alpha$ captures how one trade type increases the likelihood of another trade type. Aggressive trades have a strong self-excitation ($\alpha_{1,1} = 2.57$) and also increase the chance of non-aggressive trades ($\alpha_{0,1} = 15.85$). Non-aggressive trades have little effect on aggressive ones ($\alpha_{1,0} = 0.52$). The decay matrix $\beta$ tells us how quickly these effects fade. Aggressive trades have a short but strong influence on others, while non-aggressive trades influence aggressive trades only briefly.}
     \label{tb:hawkes-params}
     \begin{tabular}{lcc}
     \toprule
@@ -152,10 +158,12 @@ The top plot is the sum of intensities $\sum_{m} \lambda_k(t)$ across both event
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\linewidth]{figures/hp_estimation.png}
-    \caption{Estimated intensity functions for each event type. Red markers indicate actual event times.}
+    \caption{Estimated intensity functions for each event type}
+    \caption*{\textit{Note:} This figure shows the estimated intensity functions from the neural Hawkes process. Only 1,750 time steps are shown for clarity. The top plot shows the total intensity across both types. Small purple markers show when events occurred. The middle plot shows the intensity for non-aggressive trades (type 0), which has many peaks and follows the event markers well. The bottom plot shows the intensity for aggressive trades (type 1), which is much lower, but still shows peaks at the correct times.}
+
     \label{fig:neuralhp-intensity}
 \end{figure}
-
+\newpage
 %------------ prediction -------------
 After getting the estimated parameters from the training phase, I test the Neural Hawkes Process on out-of-sample data. The input for prediction comes from the out-of-sample output of the XGBoost classifier. This XGBoost, as discussed before, is designed to contain more aggressive trades by predicting as many positives as possible, helping us balance the class better during prediction. It includes market features such as spread ($S$), mid-price ($M$), volume at best ask and bid ($V_A^1$, $V_B^1$), short-term average changes ($\bar{\delta}_S$, $\bar{\delta}_M$), volatilities ($\sigma_S$, $\sigma_M$), and volume ratio ($r_V$). These can all be fetched directly from Snowflake or calculated by these raw data. These features are used to extract hidden states from the GRU, and the corresponding timestamps ($T$) are passed into the Hawkes process to compute event intensities using the previously estimated parameters.
 
@@ -164,8 +172,8 @@ I first conduct prediction on a sample from 2025-02-18 13:30:04.710 to 2025-02-1
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\linewidth]{figures/aflag_NHP_181330.png}
-    \caption{Comparison of true vs. predicted $\bar{\alpha}$ from neural Hawkes process. 
-    The blue '+' markers show the true class labels, and the orange '+' markers show the predicted ones. To make the plot easier to read, the predicted values are moved down by 0.05 on the y-axis.
+    \caption{Comparison of true vs. predicted $\bar{\alpha}$ from neural Hawkes process} 
+    \caption*{\textit{Note:} The blue '+' markers show the true class labels, and the orange '+' markers show the predicted ones. To make the plot easier to read, the predicted values are moved down by 0.05 on the y-axis.
     }
     \label{fig:nhp-aflag}
 \end{figure}
@@ -180,6 +188,7 @@ The \textbf{Dynamic Time Warping (DTW)} distance is 23.0, with a normalized DTW 
 \begin{table}[H]
     \centering
     \caption{Dynamic Time Warping (DTW) Results} \label{tab:dtw}
+    \caption*{\textit{Note:} The results from DTW. The DTW distance is 23.0, and the normalized distance is 0.00297. This small value means the predicted trades follow a very similar time pattern as the true ones. The diagonal ratio is 1.995. A ratio near 2 means the predicted and actual events align almost one-to-one.}
     \begin{tabular}{lr}
     \toprule
     Metric & Value \\
@@ -196,6 +205,7 @@ The \textbf{Wasserstein distance} is 0.0019 in Table~\ref{tb:wasserstein-results
 \begin{table}[H]
     \centering
     \caption{Wasserstein Distance Results}
+    \caption*{\textit{Note:} The Wasserstein distance between the predicted and actual distributions of aggressive trade times. The distance is 0.0019, and the normalized value is also 0.0019 out of a maximum of 1.0. This is extremely low, which means the predicted timing and density of trade events are very close to the real ones. Even if the model does not capture every single event, the overall distribution pattern over time is very accurate.}
     \label{tb:wasserstein-results}
     \begin{tabular}{lr}
     \toprule
@@ -239,6 +249,7 @@ The \textbf{Allan factor} measures event clustering over different time windows.
 \begin{table}[H]
     \centering
     \caption{Allan Factor Results for Aggressive Trade Clustering}
+    \caption*{\textit{Note:} The Allan Factor (AF) values for both true and predicted aggressive trades across different window sizes. An AF greater than 1 indicates clustering. For the true trades ($\bar{\alpha}_\text{true}$), the average AF is 1.0698. The predicted trades ($\bar{\alpha}_\text{pred}$) have a slightly higher average AF of 1.2687. This difference is expected, since the neural Hawkes process models self-exciting behavior.}
     \label{tb:allan-factor}
     \begin{tabular}{lcc}
     \toprule
@@ -264,6 +275,7 @@ In conclusion, both Allan Factor and Ripley's L function results suggest that th
 \begin{table}[H]
     \centering
     \caption{Ripley's L Function Summary}
+    \caption*{\textit{Note:} The clustering results based on Ripley's L function for both actual and predicted aggressive trades. If \( L(r) \) is greater than 0, it indicates clustering. For true trades ($\bar{\alpha}_\text{true}$), the average \( L(r) \) is 22.76, while for predicted trades ($\bar{\alpha}_\text{pred}$), the average is 31.04. The values at different time distances (1s, 2s, 5s) are also higher for the predictions, showing that the model produces stronger clustering.}
     \label{tb:ripley-l}
     \begin{tabular}{lcc}
     \toprule
@@ -282,14 +294,15 @@ In conclusion, both Allan Factor and Ripley's L function results suggest that th
 \begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{figures/RIPLEY_181330.png}
-    \caption{Ripley's K and L functions comparing real and predicted aggressive trades. Values above the dashed line in the \( L(r) \) plot indicate clustering behavior. Both actual and predicted series exhibit clustering across all distances. The predicted trades show stronger clustering, especially at larger distances, which is consistent with the self-exciting nature of the Hawkes process.}
+    \caption{Ripley's K and L functions comparing real and predicted aggressive trades}
+    \caption*{\textit{Note:} Values above the dashed line in the \( L(r) \) plot indicate clustering behavior. Both actual and predicted series exhibit clustering across all distances. The predicted trades show stronger clustering, especially at larger distances, which is consistent with the self-exciting nature of the Hawkes process.}
     \label{fig:ripley-kl}
 \end{figure}
 
 
 
 %----------------------ACF--------------------
-Next, I analyze the \textbf{autocorrelation} structure of both the actual and predicted aggressive trade series to assess whether the neural Hawkes process model shows the temporal dependence between trades. The Autocorrelation Function (ACF) and Partial Autocorrelation Function (PACF) plots are shown in Figure~\ref{fig:acf-pacf}. For the actual aggressive trade series ($\bar{\alpha}_\text{true}$), the lag-1 autocorrelation is 0.0842, showing weak but positive short-term dependence. The values quickly drop near zero at higher lags. For example lag-5 and lag-10 both are -0.0030. In total, 6 lags are statistically significant, and the Ljung-Box test p-value is essentially zero. This indicates that even though the autocorrelations are small, the actual process does have significant temporal structure. Next I test if the temporal structure also exists in our prediction. For the predicted series ($\bar{\alpha}_\text{pred}$), the lag-1 autocorrelation is 0.0744, which is very close to the actual series. Lag-5 and lag-10 values are -0.0049, also similar to the actual values. There are 4 significant lags, and the Ljung-Box test again returns a p-value closing to 0. This indicates the presence of temporal dependence.
+Next, I analyse the \textbf{autocorrelation} structure of both the actual and predicted aggressive trade series to assess whether the neural Hawkes process model shows the temporal dependence between trades. The Autocorrelation Function (ACF) and Partial Autocorrelation Function (PACF) plots are shown in Figure~\ref{fig:acf-pacf}. For the actual aggressive trade series ($\bar{\alpha}_\text{true}$), the lag-1 autocorrelation is 0.0842, showing weak but positive short-term dependence. The values quickly drop near zero at higher lags. For example lag-5 and lag-10 both are -0.0030. In total, 6 lags are statistically significant, and the Ljung-Box test p-value is essentially zero. This indicates that even though the autocorrelations are small, the actual process does have significant temporal structure. Next I test if the temporal structure also exists in our prediction. For the predicted series ($\bar{\alpha}_\text{pred}$), the lag-1 autocorrelation is 0.0744, which is very close to the actual series. Lag-5 and lag-10 values are -0.0049, also similar to the actual values. There are 4 significant lags, and the Ljung-Box test again returns a p-value closing to 0. This indicates the presence of temporal dependence.
 
 These results suggest that the neural Hawkes process produces a time series with similar short-term dependency structure as the actual trader behaviors in the real market. It is fair to say the neural Hawkes process is capable of capturing temporal structure in aggressive trade patterns.
 
@@ -299,6 +312,7 @@ These results suggest that the neural Hawkes process produces a time series with
     \centering
     \includegraphics[width=0.95\linewidth]{figures/ACF_181330.png}
     \caption{Autocorrelation (ACF) and Partial Autocorrelation (PACF) plots of actual and predicted aggressive trade series.}
+    \caption*{\textit{Note:} The ACF and PACF plots for both the actual and predicted aggressive trade series. The actual series ($\bar{\alpha}_\text{true}$) has a lag-1 autocorrelation of 0.0842, while the predicted series ($\bar{\alpha}_\text{pred}$) has 0.0744. Higher lag values like lag-5 and lag-10 are close to zero or slightly negative in both cases. In total, 6 lags are significant for the actual series and 4 for the predicted one. The Ljung-Box test p-values are close to 0 in both cases, showing that there is meaningful temporal dependence.}
     \label{fig:acf-pacf}
 \end{figure}
 
@@ -313,6 +327,7 @@ The KS test is used to compare the cumulative distributions of two sample sets. 
 \begin{table}[H]
     \centering
     \caption{Kolmogorov--Smirnov Test Results}
+    \caption*{\textit{Note:} The result of the Kolmogorov-Smirnov (KS) test, which compares the distribution of predicted and actual aggressive trade events. The KS statistic is 0.0019 and the p-value is 1.0000, which means there is no significant difference between the two distributions. The actual proportion of aggressive trades is 0.0030, and the predicted proportion is 0.0049. Their difference is very small, only 0.0019, meaning the neural Hawkes model successfully captures the statistical distribution of aggressive trade events.}
     \label{tb:ks-test}
     \begin{tabular}{lr}
     \toprule
@@ -373,6 +388,7 @@ Table~\ref{tb:dtw_com} compares Dynamic Time Warping (DTW) results between the b
 \begin{table}[H]
     \centering
     \caption{DTW Results Comparison} \label{tb:dtw_com}
+    \caption*{\textit{Note:} The Dynamic Time Warping (DTW) results between the benchmark model and our model. The DTW distance drops from 632 to 23, and the normalized distance drops from 0.0815 to 0.0029. These are large improvements, showing that the predicted aggressive trades from our model are much closer to the real ones in timing.}
     \begin{tabular}{lrr}
     \toprule
     Metric & Benchmark Value & Model Value\\
@@ -389,6 +405,8 @@ In Table~\ref{tb:wasserstein_com}, the Wasserstein distance results also show th
 \begin{table}[H]
     \centering
     \caption{Wasserstein Distance Results Comparison}
+    \caption*{\textit{Note:} The Wasserstein distance between the benchmark and our model. The distance drops from 0.1054 to 0.0019, showing that the predicted aggressive trade timings are much closer to the real ones when using our model. The normalized distance confirms this improvement. Both models are compared against the maximum possible distance of 1.0.}
+
     \label{tb:wasserstein_com}
     \begin{tabular}{lrr}
     \toprule
@@ -405,10 +423,12 @@ The Allan Factor results in Table~\ref{tb:allan-factor_com} show how clustered t
 \begin{table}[H]
     \centering
     \caption{Allan Factor Results Comparison}
+    \caption*{\textit{Note:} The Allan Factor values across different time windows for the actual, predicted, and benchmark aggressive trade series. The model prediction is slightly more clustered at 1.2687 but still close to reality. In contrast, the benchmark shows very strong clustering with an average of 4.9571, especially at large window sizes. This means the benchmark tends to bunch trades together unrealistically. Our model produces a more realistic and balanced clustering pattern over time.}
+
     \label{tb:allan-factor_com}
     \begin{tabular}{lccc}
     \toprule
-    \textbf{Window Size} & $\bar{\alpha}_\text{true}$ & $\bar{\alpha}_\text{pred}$ & $\bar{\alpha}_\text{benchmark}$ \\
+    Window Size & $\bar{\alpha}_\text{true}$ & $\bar{\alpha}_\text{pred}$ & $\bar{\alpha}_\text{benchmark}$ \\
     \midrule
     2   & 1.044 & 0.869 & 0.452 \\
     5   & 1.044 & 1.290 & 1.148 \\
@@ -416,9 +436,9 @@ The Allan Factor results in Table~\ref{tb:allan-factor_com} show how clustered t
     20  & 1.090 & 1.346 & 4.582 \\
     50  & 1.050 & 1.722 & 9.064 \\
     \midrule
-    \textbf{Average AF} & 1.0698 & 1.2687 & 4.9571 \\
-    \textbf{Number of Events} & 23 & 38 & 840 \\
-    \textbf{Event Rate} & 0.00297 & 0.00490 & 0.108387 \\
+    Average AF & 1.0698 & 1.2687 & 4.9571 \\
+    Number of Events & 23 & 38 & 840 \\
+    Event Rate & 0.00297 & 0.00490 & 0.108387 \\
     \bottomrule
     \end{tabular}
 \end{table}
@@ -429,6 +449,8 @@ For Ripley's \(L\) function in Table~\ref{tb:ripley-l_com}, our model predicts a
 \begin{table}[H]
     \centering
     \caption{Ripley's L Function Comparison} 
+    \caption*{\textit{Note:} The Ripley's \(L\) function values for actual, predicted, and benchmark aggressive trades. The average \(L(r)\) value of our model is 31.04, which is slightly higher than the true value of 22.76, showing mild over-clustering. But this is still close to the real pattern. The benchmark has a much higher average \(L(r)\) of 48.34, and especially large values at bigger time windows like 39.46 at 5 seconds. This means the benchmark predicts too many trades close together, which is not realistic.}
+
     \begin{tabular}{lccc}
     \toprule
     \textbf{Metric} & $\bar{\alpha}_\text{true}$ & $\bar{\alpha}_\text{pred}$ & $\bar{\alpha}_\text{benchmark}$ \\
@@ -445,11 +467,13 @@ For Ripley's \(L\) function in Table~\ref{tb:ripley-l_com}, our model predicts a
     \label{tb:ripley-l_com}
 \end{table}
 
-Table~\ref{tab:acf-series-com} compare the autocorrelation patterns of true, predicted, and benchmark aggressive trade sequences. The benchmark shows a very high lag-1 autocorrelation of 0.7196, which slowly decreases but still remains strong at lag-5 (0.3897) and lag-10 (0.2428). This suggests that the benchmark predictions are highly dependent on their recent past values. The model predictions lie in between true series and benchmark: they have a lag-1 autocorrelation of 0.1310, which is slightly higher than the true series, but still far below the benchmark. 
+Table~\ref{tab:acf-series-com} and Figure~\ref{fig:acf-pacf-com} compare the autocorrelation patterns of true, predicted, and benchmark aggressive trade sequences. The benchmark shows a very high lag-1 autocorrelation of 0.7196, which slowly decreases but still remains strong at lag-5 (0.3897) and lag-10 (0.2428). This suggests that the benchmark predictions are highly dependent on their recent past values. The model predictions lie in between true series and benchmark: they have a lag-1 autocorrelation of 0.1310, which is slightly higher than the true series, but still far below the benchmark. 
 
 \begin{table}[htbp]
 \centering
 \caption{Autocorrelation comparison}
+\caption*{\textit{Note:} The autocorrelation values for actual, predicted, and benchmark aggressive trades results. The actual trades show weak short-term dependence with lag-1 autocorrelation at 0.0842, and values near zero at longer lags. The model prediction shows stronger but still moderate autocorrelation, with lag-1 at 0.1310 and very small values after lag-5. In contrast, the benchmark has very high autocorrelation at all lags. It starts from 0.7196 at lag-1 and stays strong at lag-5 and lag-10. It also has 48 significant lags, meaning the benchmark prediction is heavily dependent on past values and lacks natural variation.}
+
 \begin{tabular}{lccc}
 \toprule
 \textbf{Metric} & $\bar{\alpha}_{\text{true}}$ & $\bar{\alpha}_{\text{pred}}$ & $\bar{\alpha}_{\text{benchmark}}$ \\
@@ -466,11 +490,11 @@ Has significant autocorr    & True    & True    & True    \\
 \end{table}
 
 
-% haven't depict this
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\linewidth]{figures/ACF_181330_benchmark.png}
-    \caption{Autocorrelation (ACF) and Partial Autocorrelation (PACF) plots of actual and benchmark predicted aggressive trade series.}
+    \caption{Autocorrelation (ACF) and Partial Autocorrelation (PACF) plots of actual and benchmark predicted aggressive trade series}
+    \caption*{\textit{Note:} The plot confirms that the benchmark pattern is very different from both the true and model-predicted series in Figure~\ref{fig:acf-pacf}.}
     \label{fig:acf-pacf-com}
 \end{figure}
 
@@ -480,10 +504,11 @@ In contrast, the benchmark's p-value is 0.0000, indicating a clear mismatch.  Th
 \begin{table}[H]
     \centering
     \caption{Kolmogorov--Smirnov Test Results Comparison}
+    \caption*{\textit{Note:} The statistical difference between actual and predicted aggressive trade event distributions using the Kolmogorov--Smirnov (KS) test. A smaller KS statistic and a larger p-value indicate better alignment. The model's KS statistic is much lower (0.0019) compared to the benchmark (0.1054), and its p-value is 1.0000, showing no significant difference from the actual data. In contrast, the benchmark has a p-value of 0.0000, meaning its prediction is statistically different from the real distribution. The model also gives a predicted aggressive trade proportion of 0.0049, which is much closer to the actual 0.0030 than the benchmark's 0.1084.}
     \label{tb:ks-test-com}
     \begin{tabular}{lrr}
     \toprule
-    \textbf{Metric} & \textbf{Benchmark Value} & \textbf{Model Value}\\
+    Metric & Benchmark Value & Model Value\\
     \midrule
     KS Statistic & 0.1054 & 0.0019 \\
     p-value & 0.0000 & 1.0000 \\

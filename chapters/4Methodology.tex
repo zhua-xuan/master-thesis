@@ -23,6 +23,8 @@ As shown in Equation~\ref{eq: aggressiveness}, for instance, on the bid side, $\
 
 \begin{table}[h] 
     \centering 
+    \caption{Interpretation of $\alpha$ in different contexts}
+    \caption*{\textit{Note:} The meaning of $\alpha$ under different trading conditions. A positive $\alpha$ indicates aggressive behavior on the bid side (buying above the benchmark) or passive behavior on the ask side (selling above the benchmark). A negative $\alpha$ reflects aggressive behavior on the ask side (selling below the benchmark) or passive behavior on the bid side (buying below the benchmark). An $\alpha$ of 0 means no trade occurred. The variable $\alpha$ is used only for interpreting trade aggressiveness and is not included in the modeling process.}
     \begin{tabular}{lll} 
         \toprule 
         \textbf{$\alpha$} & \textbf{Meaning} & \textbf{Data Type} \\ 
@@ -32,14 +34,17 @@ As shown in Equation~\ref{eq: aggressiveness}, for instance, on the bid side, $\
         $ = 0$ & No trades & Float \\  
         \bottomrule 
     \end{tabular} 
-    \caption{Interpretation of $\alpha$ in Different Contexts}
     \label{tb: alpha_meaning}
 \end{table}
 
 \subsection{Binary Label for Aggressive Trade} \label{sec: aflag}
-However, it is important to note that in the backtesting context at MN, I pay little attention to how aggressive a trader is, whether and when an aggressive trade will occur is more critical. Therefore, based on the $\alpha$, a binary target, called aggressiveness flag, denoted as $\bar{\alpha}$, is introduced. The direction of the trade is not considered by $\bar{\alpha}$ because I assume that traders will adjust order direction according to our order submission dynamically. $\bar{\alpha}$ is set to $0$ if no trade takes place or $\alpha$ is positive in ask side and negative in bid side takes at a given timestamp in the order book, and $1$ if $\alpha$ is possible in bid side and negative in ask side. 
+However, it is important to note that in the backtesting context at MN, we pay little attention to how aggressive a trader is, whether and when an aggressive trade will occur is more critical. Therefore, based on the $\alpha$, a binary target, called aggressiveness flag, denoted as $\bar{\alpha}$, is introduced. The direction of the trade is not considered by $\bar{\alpha}$ because I assume that traders will adjust order direction according to our order submission dynamically. $\bar{\alpha}$ is set to $0$ if no trade takes place or $\alpha$ is positive in ask side and negative in bid side takes at a given timestamp in the order book, and $1$ if $\alpha$ is possible in bid side and negative in ask side. 
+
+In Table~\ref{tb: aflag_meaning}, Binary flag $\bar{\alpha}$ is generated which contains $1$ and $0$. It is reduced to a classification problem to solve by models, but the complexity of this issue comes from the class imbalance and feature dependencies. I will discuss them in the following contents in detail.
 \begin{table}[h] 
     \centering 
+    \caption{Interpretation of $\bar{\alpha}$ in different contexts}
+    \caption*{\textit{Note:} The meaning of the binary flag $\bar{\alpha}$ used in the modeling process. A value of 1 indicates an aggressive trade, while 0 includes both passive trades and situations where no trade occurred. This simplification allows the problem to be treated as a binary classification task.}
     \begin{tabular}{lll} 
         \toprule 
         \textbf{$\bar{\alpha}$} & \textbf{Meaning} & \textbf{Data Type} \\ 
@@ -48,11 +53,8 @@ However, it is important to note that in the backtesting context at MN, I pay li
         $ = 0$ & Both passive trades and cases where no trade occurred & Integer \\  
         \bottomrule 
     \end{tabular} 
-    \caption{Interpretation of $\bar{\alpha}$ in Different Contexts}
     \label{tb: aflag_meaning}
 \end{table}
-In Table~\ref{tb: aflag_meaning}, I get binary flag $\bar{\alpha}$ which contains $1$ and $0$. It is reduced to a classification problem to solve by models, but the complexity of this issue comes from the class imbalance and feature dependencies. I will discuss them in the following contents in detail.
-
 
 
 \section{Data Processing Methods}
@@ -62,17 +64,21 @@ The original order book data and trade book data (Table~\ref{tb: order book data
 Specifically, in Section~\ref{sec: training data}, I provide basic dataset for model training, test, estimation and prediction, along with specific formulas for certain features. The theoretical solution for extreme class imbalance is established in Section~\ref{sec: class imbalance}.
 
 \subsection{Feature Engineering: Basic Dataset for Model Training} \label{sec: training data}
-In selecting which features to generate, I inherit indicators from original order book and trade book, then extend them to get further features. The target discussed in Section~\ref{sec: aflag} is included as the basic dataset.
+In selecting which features to generate, I inherit indicators from original order book and trade book, then extend them to get further features. The target discussed in Section~\ref{sec: aflag} is included to form the basic dataset.
+
+In the Table~\ref{tb: overall dataset for training}, capitalized terms refer to variables obtained directly from the order book and trade book data, including timestamp($T$), spread($S$), mid-price($M$), volume($V_A^{1}$, $V_B^{1}$). $T$ represents the time snapshot calculated relative to millisecond.
 
 \begin{table}[h] 
     \centering 
+    \caption{Overall Dataset for Modeling}
+    \caption*{\textit{Note:} All variables used for modeling. Capitalized terms represent features extracted directly from the order book and trade book. $T$ is the timestamp of each observation and is calculated relative to milliseconds. $S$ is the spread, and $M$ is the mid-price. $V_A^{1}$ and $V_B^{1}$ represent the volume at the best ask and bid, respectively. $\bar{\delta}_S$ and $\bar{\delta}_M$ measure the average absolute change in spread and mid-price over the past 50 ticks, as defined in Equations~\ref{eq: spread change} and \ref{eq: midprice change}. $\sigma_S$ and $\sigma_M$ capture the volatility of spread and mid-price based on deviations from their respective average changes, shown in Equations~\ref{eq: spread vola} and \ref{eq: midprice vola}. $r_V$ is the volume imbalance at the top of the book, calculated as in Equation~\ref{eq: volume ratio}. The binary flag $\bar{\alpha}$ serves as the target variable for classifying aggressive trades.}
     \begin{tabular}{lll} 
         \toprule 
         \textbf{Column} & \textbf{Description} & \textbf{Data Type} \\ 
         \midrule 
         $\bar{\alpha}$ & Binary flag & Integer \\
         $T$ & Timestamp of the snapshot in HH:MM.SSS & String \\
-        \text{DIRECTION} & Bid($1$) or ask($-1$) trades & Integer \\
+        \text{DIRECTION} & Bid ($1$) or ask ($-1$) trades & Integer \\
         $S$ & Difference between best ask and bid & Float \\
         $M$ & Middle price of best ask and bid & Float\\
         $V_A ^ {1}$ & Volume at best ask & Integer\\
@@ -86,11 +92,10 @@ In selecting which features to generate, I inherit indicators from original orde
         $r_V$ & Volume imbalance between best ask and bid & Float \\
         \bottomrule 
     \end{tabular} 
-    \caption{Overall Dataset for Modeling}
     \label{tb: overall dataset for training}  
 \end{table}
-In the Table~\ref{tb: overall dataset for training}, capitalized terms refer to variables obtained directly from the order book and trade book data, including timestamp($T$), spread($S$), mid-price($M$), volume($V_A^{1}$, $V_B^{1}$). $T$ represents the time snapshot calculated relative to millisecond.
 
+\newpage
 The last five features ($\bar{\delta}_S$, $\bar{\delta}_M$, $\sigma_S$, $\sigma_M$, $r_V$) are calculated from spread, mid-price or volume based on common factors which display order flow dynamics. $\bar{\delta}_S$ and $\bar{\delta}_M$ measure the local average absolute change over. They both capture the rapid changes in the cost of executing trades, directly related to liquidity changes in real market LOB dynamics. Specifically, $\bar{\delta}_M$ is useful to simulate realistic microstructure scenarios where aggressive trades tend to cluster, such as around price jumps. A 50-tick window is commonly used in high-frequency time series data because it effectively represents the local market environment without unnecessary noise or excessive smoothing. $\bar{\delta}_S$ and $\bar{\delta}_M$ can be formulated as follows:
 
 \begin{equation}
@@ -128,11 +133,12 @@ $r_V$ represents the relative imbalance between the ask and bid sides, as define
 % What is class imbalance
 In a binary classification problem with data samples from two groups, class imbalance occurs when one class, the minority group, contains significantly fewer samples than the other class, the majority group \citep{johnson_survey_2019}. Extreme class imbalance refers to scenarios where the minority class represents less than 1\% of the total dataset \citep{leevy_survey_2018}. This level of imbalance brings significant challenges for machine learning algorithms, with strong bias results toward the majority class and may completely ignore the minority class in extreme cases. Extremely imbalanced datasets like this one are common in medicine and finance fields.
 
-To predict aggressive trades in the limit order book, I study the aggressive trade flag ($\bar{\alpha}$). To demonstrate the imbalance clearly, one of a trading day is selected here, as shown in Figure.~\ref{fig: aflag_class_distribution}. $\bar{\alpha}$ faces severe class imbalance, which can lead to biased model predictions if not addressed. In the figure, class 0 dominates the dataset, accounting for 99.8\% of all samples, while Class 1 accounts for only 0.2\%. To solve this imbalance, techniques such as resampling, weighted loss function, and anomaly filter function are employed. 
+To predict aggressive trades in the limit order book, I study the aggressive trade flag ($\bar{\alpha}$). To demonstrate the imbalance clearly, one of a trading day is selected here, as shown in Figure.~\ref{fig: aflag_class_distribution}. $\bar{\alpha}$ faces severe class imbalance, which can lead to biased model predictions if not addressed. In the figure, class 0 dominates the dataset, accounting for 99.8\% of all samples, while Class 1 accounts for only 0.2\%. To solve this imbalance, techniques such as resampling and weighted loss function. 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\linewidth]{figures/Imbalaced data for aflag.png}
-    \caption{Class Distribution for $\bar{\alpha}$ on 31st January. In the overall 308,178 data, class 0 accounts for 99.8\% of the samples, while Class 1 represents only 0.2\%, indicating a severe class imbalance.}
+    \caption{Class Distribution for $\bar{\alpha}$ on 31st January}
+    \caption*{\textit{Note:} In the overall 308,178 data, class 0 accounts for 99.8\% of the samples, while Class 1 represents only 0.2\%, indicating a severe class imbalance.}
     \label{fig: aflag_class_distribution}
 \end{figure}
 
@@ -162,20 +168,30 @@ Building upon the foundation laid in the balanced class, weighted loss functions
 \]
 where $w_1$ and $w_0$ are the weights for class 1 and class 0, respectively, $y$ is the true label, and $\hat{y}$ is the predicted probability. This weighted loss penalizes the model more for errors on class 1, guiding it to pay more attention to the target class during training.
 
-Anomaly filter methods are also applied to highlight the regions around aggressive trading events. This thesis presents a window-based filter function to extract time segments centered around class 1 instances. Specifically, for each sample with a non-missing DIRECTION label, which means there is at least one trade recorded, a window of certain milliseconds is defined. All entries within this time range are included for training. This method ensures that the model is exposed to a richer context around potential anomalies and enhances the learning of class 1 patterns in the high-frequency setting. In our practical implementation, I integrate an anomaly detection function alongside KMeansSMOTE across different models. This ensures that imbalanced class problem are handled without conflict in each model and maintains balanced class distributions consistently between the models.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{figures/NHP_distribution.png}
+    \caption{Rebalanced class distribution for $\bar{\alpha}$ on 31st January}
+    \caption*{\textit{Note:} After rebalance, in the overall 4,036 data, class 0 accounts for 98.2\% of the samples, and class 1 represents around 2\%, indicating a better class imbalance.}
+    \label{fig: aflag_better_class_distribution}
+\end{figure}
 
-\begin{algorithm}[H]
-\caption{Window-Based Anomaly Filter} \label{al: window-based}
-\begin{algorithmic}[1]
-\State \textbf{Input:} Data with timestamps and labels; window size $\delta$
-\State \textbf{Output:} Filtered data around class 1 instances
-\For{each timestamp $t$ where \texttt{DIRECTION} is not NaN}
-    \State Define window: $[t - \delta/2,\ t + \delta/2]$
-    \State Find all rows within this window and add their indices to \texttt{result\_indices}
-\EndFor
-\State \Return rows corresponding to \texttt{result\_indices}
-\end{algorithmic}
-\end{algorithm}
+
+% \newpage
+% Anomaly filter methods are also applied to highlight the regions around aggressive trading events. This thesis presents a window-based filter function to extract time segments centered around class 1 instances. Specifically, for each sample with a non-missing DIRECTION label, which means there is at least one trade recorded, a window of certain milliseconds is defined. All entries within this time range are included for training. This method ensures that the model is exposed to a richer context around potential anomalies and enhances the learning of class 1 patterns in the high-frequency setting. In our practical implementation, I integrate an anomaly detection function alongside KMeansSMOTE across different models. This ensures that imbalanced class problem are handled without conflict in each model and maintains balanced class distributions consistently between the models.
+
+% \begin{algorithm}[H]
+% \caption{Window-Based Anomaly Filter} \label{al: window-based}
+% \begin{algorithmic}[1]
+% \State \textbf{Input:} Data with timestamps and labels; window size $\delta$
+% \State \textbf{Output:} Filtered data around class 1 instances
+% \For{each timestamp $t$ where \texttt{DIRECTION} is not NaN}
+%     \State Define window: $[t - \delta/2,\ t + \delta/2]$
+%     \State Find all rows within this window and add their indices to \texttt{result\_indices}
+% \EndFor
+% \State \Return rows corresponding to \texttt{result\_indices}
+% \end{algorithmic}
+% \end{algorithm}
 
 
 \section{Prediction Model: An XGBoost-Enhanced Neural Hawkes Process Framework}
@@ -187,7 +203,7 @@ To address the extreme class imbalance in the dataset, KMeansSMOTE is applied du
 
 In the first stage, I employ XGBoost to predict $\bar{\alpha}$ on the full trading day using limit order book features in Table~\ref{tb: overall dataset for training}. To address the extreme class imbalance and get potential aggressive trade rows, I apply KMeansSMOTE before training. This first classifier aims to identify as many true trade points as possible (high recall) and increase the proportion of minor class in the output. The model filters out most of the non-aggressive instances (class 0) and provides a broad set of aggressive trade activity candidates. This output serves two purposes: it reduces the candidate space for aggressive trade prediction, and its feature importance guides the selection of input features for subsequent models.
 
-In the second stage, I train a GRU-based recurrent neural network to get the hidden state formula of the two market scenarios as mentioned in Table~\ref{tb: aflag_meaning} (aggressive and non-aggressive). The GRU model is trained on a balanced dataset constructed using a window-based anomaly filter function around class 1 labels as presented in Algorithm~\ref{al: window-based}. This stage further refines the prediction of aggressive trades by deep learning networks. The GRU hidden state captures these invisible market conditions that traditional Hawkes can not see, but that critically affect event intensity.
+In the second stage, I train a GRU-based recurrent neural network to get the hidden state formula of the two market scenarios as mentioned in Table~\ref{tb: aflag_meaning} (aggressive and non-aggressive). The GRU model is trained on a balanced dataset from the training data output of XGBoost. This stage further refines the prediction of aggressive trades by deep learning networks. The GRU hidden state captures these invisible market conditions that traditional Hawkes can not see, but that critically affect event intensity.
 
 In the final stage, I apply a neural Hawkes process to analyze a more dynamic estimation and prediction of aggressive trades. The Hawkes model captures the temporal clustering of aggressive trade events and demonstrates interpretable output in the form of aggressive and non-aggressive trade intensity and probability. This significantly compensates for the limited ability of machine learning models. I also incorporate a condition based on MN trade execution information: if an internal order is filled within certain milliseconds window, it increases the likelihood of a nearby aggressive trade. This step not only enhances the final accuracy and F1 score, but also produces a more interpretable, precise and inclusive prediction set.
 
@@ -195,8 +211,9 @@ Overall, this framework effectively predicts rare aggressive trades by combining
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/data_flow1.png}
-    \caption{Data flow of the full pipeline from raw data to final prediction, combining both training and testing stages.}
+    \includegraphics[width=\textwidth]{figures/data_flow1.png}
+    \caption{Data flow of the full pipeline from raw data to final prediction}
+    \caption*{\textit{Note:} The full workflow of the predictive framework, combining both training and testing stages. The pipeline includes three main stages. First, XGBoost is trained on limit order book features, and KMeansSMOTE is applied to handle class imbalance during training. The filtered output and features are passed to a GRU model, which encodes recent market state into a hidden state. This hidden state is used to condition a neural Hawkes process in the final stage. The Hawkes model predicts the intensity and probability of future aggressive trades.}
     \label{fig:data-flow-diagram}
 \end{figure}
 
@@ -320,15 +337,17 @@ In our study, I adopt a GRU architecture instead of the LSTM structure used by \
 \begin{table}[H]
 \centering
 \caption{Comparison of LSTM-Based Model vs. GRU-Based Model}
+\caption*{\textit{Note:} This table compares the LSTM model used by \cite{lalor_event-based_2025} with the GRU model adopted in the thesis. LSTM is used in stock data with lower frequency and longer time spans. In contrast, I use GRU for high-frequency FX data in shorter windows. The GRU model is chosen for its faster training and lower complexity, which fits better with the binary prediction task. It also reduces the risk of overfitting due to fewer parameters and more stable performance.}
+
 \begin{tabular}{p{3cm} p{5.5cm} p{5.5cm}}
 \toprule
-\textbf{Aspect} & \textbf{LSTM-Based Model} & \textbf{GRU-Based Model} \\
+Aspect & LSTM-Based Model & GRU-Based Model \\
 \midrule
-\textbf{Data Domain} & Stock LOBSTER data (lower tick frequency, long time span) & FX spot market data (millisecond frequency, short time window) \\
-\textbf{Purpose} & Simulates all 12 LOB event types & Predicts binary outcome \\
-\textbf{Complexity} & High: expressive but computationally intensive & Low: efficient and sufficient for task-specific modeling \\
-\textbf{Training Time} & Slower convergence; more resource intensive & Faster training; lightweight structure \\
-\textbf{Overfitting Risk} & High: due to model size and variable performance across assets & Lower: binary setting with consistent performance \\
+Data Domain & Stock LOBSTER data (lower tick frequency, long time span) & FX spot market data (millisecond frequency, short time window) \\
+Purpose & Simulates all 12 LOB event types & Predicts binary outcome \\
+Complexity & High: expressive but computationally intensive & Low: efficient and sufficient for task-specific modeling \\
+Training Time & Slower convergence; more resource intensive & Faster training; lightweight structure \\
+Overfitting Risk & High: due to model size and variable performance across assets & Lower: binary setting with consistent performance \\
 \bottomrule
 \end{tabular}
 \label{tab:gru_vs_lstm}
@@ -374,7 +393,7 @@ In our study, the model is trained to capture hidden states which can keep usefu
 
 \begin{itemize}
   \item \textbf{Input:}  
-  An anomaly filter is applied to the raw dataset. For each record with a valid \texttt{DIRECTION} label, a fixed-width time window is constructed. All entries falling within this window are collected to form a training sample. This ensures the filtered dataset maintains approximately 10\% aggressive trades, aligning with the XGBoost classifier's output distribution.
+  A XGBoost filter is applied to the raw training dataset. This ensures the filtered dataset maintains approximately 2\% aggressive trades, which is not considered as extreme class imbalance.
 
   Before training, features and labels are scaled using \texttt{MinMaxScaler()}, and sequences are reshaped with a fixed length of 3000 time steps. The training is conducted using a batch size of 32.
 
@@ -481,73 +500,94 @@ It is important to note that this modeling approach gives interpretable results,
 \section{Overall Data Flow} \label{sec:data-flow}
 First, I provide a more detailed explanation of Figure~\ref{fig:data-flow-diagram}, which shows the complete data flow of the framework. It includes KMeansSMOTE XGBoost and the Neural Hawkes Process. On the left side, training data A1 from Day 1 is used to train the KM-XGBoost classifier. KMeansSMOTE is applied to improve class imbalance. Normally the final training dataset contains  over 400,000 rows and 13 columns. The trained model is then used to filter aggressive trades on window-based (like 30 minutes or 1 hour) test data B1 from Day 2, producing the output data B2.
 
-On neural Hawkes process side, estimated data A2 is functioned by an anomaly detection for class balance. Then it is processed by a GRU model to extract hidden states. After that, estimation of the parameters is implemented. The filtered data B2 from the XGBoost stage is used to compute the event intensities on B2 timestamps. These intensities are passed through Ogata's thinning algorithm to promote the final aggressive trade predictions.
+On neural Hawkes process side, estimated data A2 is the output of training data from XGBoost for better class balance. Then it is processed by a GRU model to extract hidden states. After that, estimation of the parameters is implemented. The filtered data B2 from the XGBoost stage is used to compute the event intensities on B2 timestamps. These intensities are passed through Ogata's thinning algorithm to promote the final aggressive trade predictions.
 
 The final prediction result is evaluated against the true events using various metrics, including dynamic time warping, Wasserstein distance, Allan factor, Ripley's K and L functions, autocorrelation (ACF/PACF), and KS test. These metrics cover different dimensions such as temporal dependency, clustering, and distribution.
 
-Specially, 
+As the framework is sophisticate and contains delicate pipelines for training and testing. I discuss training and testing separately. The training pipeline is shown in Figure~\ref{fig: data_flow_train}. It begins with raw data from the order book and trade book. From this data, I extract important features such as timestamp, spread, mid-price, best bid and ask volumes, and other engineered features like volatility and imbalance. After that, I label each row with a binary flag $\bar{\alpha}$, which is 1 for aggressive trades and 0 for others. Since aggressive trades are very rare, the dataset is extremely imbalanced. To solve this, I use KMeansSMOTE to generate synthetic data points for the minority class. This helps the model learn better. Then I train an XGBoost classifier to filter out most of the non-aggressive rows. The goal is to keep the important rows for the next steps. The filtered output, along with its features, is passed into a GRU model. The GRU gives a hidden state, which is used in the neural Hawkes process. The neural Hawkes process then estimates the parameters in the intensity formula (Equation~\ref{eq:intensity}).
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[node distance=2cm]
+The testing pipeline is shown in Figure~\ref{fig: data_flow_test}. It starts with new order book and trade book data. Then I apply the trained XGBoost model to predict possible aggressive trade points. This helps reduce the data size and focus only on the most relevant rows. Next, I use the trained GRU model to process the filtered data and generate hidden states. Finally, I pass the hidden states into the trained neural Hawkes model to predict the intensity of aggressive trades. Based on this, the model gives the final prediction.
 
-\node (data) [block] {Original Training Data \\ (Table~\ref{tb: overall dataset for training})};
-\node (resample) [block, below of=data] {KMeansSMOTE \\ (Class ratio 3:7)};
-\node (xgboost) [block, below of=resample] {XGBoost Classifier \\ (Tuned via GridSearchCV)};
-\node (output) [block, below of=xgboost] {Predicted Class \\ (Aggressive Trade ~10\%)};
 
-\draw [arrow] (data) -- (resample);
-\draw [arrow] (resample) -- (xgboost);
-\draw [arrow] (xgboost) -- (output);
 
-\end{tikzpicture}
-\caption{XGBoost input-output workflow for aggressive trade prediction.}
-\label{fig:xgboost-flow}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/data_flow_train.png}
+    \caption{Training Pipeline of the XGBoost-Enhanced Neural Hawkes Process}
+    \caption*{\textit{Note:} The training phase of the framework. The process starts from the raw order book and trade book data. Since the original data is highly imbalanced, KMeansSMOTE is applied to balance the classes. After that, the XGBoost classifier is trained to filter possible aggressive trades and reduce noise. The filtered result is used to train a GRU model, which encodes market context. Finally, the GRU hidden states and event history are fed into a neural Hawkes process to estimate dynamic intensities of aggressive trade events.}
+    \label{fig: data_flow_train}
 \end{figure}
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[node distance=2cm]
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/data_flow_test.png} 
+    \caption{Testing Pipeline of the XGBoost-Enhanced Neural Hawkes Process}
+    \caption*{\textit{Note:} The testing (prediction) phase of the framework. The process starts from new order book and trade book data. The features are first passed through the trained XGBoost classifier to select possible aggressive trade points. This step helps reduce the number of rows and improve detection speed. Then, the selected data goes into the trained GRU model to calculate the hidden states. These hidden states embed the market condition over time. Finally, the GRU hidden states and timestamps for prediction are used by the neural Hawkes process to estimate the event intensity at each time step. Based on this intensity, the model predicts the final aggressive trades. This pipeline uses the structure learned during training and applies it to make predictions on unseen data.}
+    \label{fig: data_flow_test} 
+\end{figure}
 
-    \tikzstyle{block} = [rectangle, draw, text width=8.5em, align=center, rounded corners, minimum height=3em]
-    \tikzstyle{arrow} = [thick,->,>=stealth]
 
-    \node (filtered) [block] {Anomaly Filter\\ (Time-windowed trade sequences)};
+% \begin{figure}[H]
+% \centering
+% \begin{tikzpicture}[node distance=2cm]
+
+% \node (data) [block] {Original Training Data \\ (Table~\ref{tb: overall dataset for training})};
+% \node (resample) [block, below of=data] {KMeansSMOTE};
+% \node (xgboost) [block, below of=resample] {XGBoost Classifier \\ (GridSearchCV)};
+% \node (output) [block, below of=xgboost] {Predicted Class \\ (aggressive Trade ~2\%)};
+
+% \draw [arrow] (data) -- (resample);
+% \draw [arrow] (resample) -- (xgboost);
+% \draw [arrow] (xgboost) -- (output);
+
+% \end{tikzpicture}
+% \caption{XGBoost input-output workflow for aggressive trade prediction.}
+% \label{fig:xgboost-flow}
+% \end{figure}
+
+% \begin{figure}[H]
+% \centering
+% \begin{tikzpicture}[node distance=2cm]
+
+%     \tikzstyle{block} = [rectangle, draw, text width=8.5em, align=center, rounded corners, minimum height=3em]
+%     \tikzstyle{arrow} = [thick,->,>=stealth]
+
+%     \node (filtered) [block] {XGBoost\\ (balanced dataset)};
  
-    \node (gru) [block, below of=filtered] {GRU Model\\ (trained with warmup loss)};
+%     \node (gru) [block, below of=filtered] {GRU Model\\ (trained with warmup loss)};
 
-    \node (hidden) [block, below of=gru] {Hidden States\\ (for class 0 and class 1)};
+%     \node (hidden) [block, below of=gru] {Hidden States};
 
-    \node (hawkes) [block, below of=hidden] {Used to Condition\\ Hawkes Intensity};
+%     \node (hawkes) [block, below of=hidden] {Used to Condition\\ Hawkes Intensity};
 
-    \draw [arrow] (filtered) -- (gru);
-    \draw [arrow] (gru) -- (hidden);
-    \draw [arrow] (hidden) -- (hawkes);
+%     \draw [arrow] (filtered) -- (gru);
+%     \draw [arrow] (gru) -- (hidden);
+%     \draw [arrow] (hidden) -- (hawkes);
 
-\end{tikzpicture}
-\caption{Input-output flow of the GRU-based encoder.}
-\label{fig:gru-flow}
-\end{figure}
+% \end{tikzpicture}
+% \caption{Input-output flow of the GRU-based encoder.}
+% \label{fig:gru-flow}
+% \end{figure}
 
-The input-output workflow of this process can be summarized as follows:
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[node distance=2cm]
-    \tikzstyle{block} = [rectangle, draw, text width=9em, align=center, rounded corners, minimum height=3em]
-    \tikzstyle{arrow} = [thick,->,>=stealth]
-    \node (onehot) [block] {One-Hot Encoded\\ Trade Type};
-    \node (estimate) [block, below of=onehot] {Parameter Estimation\\ (via Neural Kernel and Log-Likelihood)};
-    \node (predict) [block, below of=estimate] {Intensity Prediction\\ on Given Timestamps};
-    \node (output) [block, below of=predict] {Final Predicted\\ Aggressive Trade Pattern};
+% The input-output workflow of this process can be summarized as follows:
+% \begin{figure}[H]
+% \centering
+% \begin{tikzpicture}[node distance=2cm]
+%     \tikzstyle{block} = [rectangle, draw, text width=9em, align=center, rounded corners, minimum height=3em]
+%     \tikzstyle{arrow} = [thick,->,>=stealth]
+%     \node (onehot) [block] {One-Hot Encoded\\ Trade Type};
+%     \node (estimate) [block, below of=onehot] {Parameter Estimation\\ (via Neural Kernel and Log-Likelihood)};
+%     \node (predict) [block, below of=estimate] {Intensity Prediction\\ on Given Timestamps};
+%     \node (output) [block, below of=predict] {Final Predicted\\ Aggressive Trade Pattern};
 
-    \draw [arrow] (onehot) -- (estimate);
-    \draw [arrow] (estimate) -- (predict);
-    \draw [arrow] (predict) -- (output);
+%     \draw [arrow] (onehot) -- (estimate);
+%     \draw [arrow] (estimate) -- (predict);
+%     \draw [arrow] (predict) -- (output);
 
-\end{tikzpicture}
-\caption{Input-output flow of the Neural Hawkes Process.}
-\label{fig:neural-hawkes-flow}
-\end{figure}
+% \end{tikzpicture}
+% \caption{Input-output flow of the Neural Hawkes Process.}
+% \label{fig:neural-hawkes-flow}
+% \end{figure}
 
 \section{Evaluation Metrics} \label{sec:evaluation-metrics}
 This section introduces the metrics useful to evaluate how well the predicted aggressive trades resemble the actual ones in the market. Traditional classification metrics, such as precision and recall, assume that each predicted event must match one true event exactly. However, in our case, MN accepts that the prediction of an aggressive trade does not have to be exactly on the timestamp in the data, but can be in an interval around this moment. Thus, I care more about the temporal patterns and distributional behavior of events. For this reason, I include other metrics that can measure similarity in terms of clustering, alignment, and statistical distribution.
@@ -556,6 +596,8 @@ As shown in Table~\ref{tb:Evaluation Metrics}, I organize the evaluation into fi
 
 \begin{table}[h]
 \centering
+\caption{Summary of Evaluation Metrics}
+\caption*{\textit{Note:} All metrics which can be used to evaluate the prediction results. Five categories are listed. Classification metrics, such as the confusion matrix, precision, recall, and F1-score, check the accuracy of predicted aggressive trade events. Temporal dependency metrics like DTW and Fréchet distance measure how well the predicted time series matches the true pattern in shape and timing. Clustering metrics evaluate how well the predicted events capture clustered behavior. Autocorrelation analysis checks if predictions show similar memory structure as the true series. Finally, distributional tests like the KS test and KL divergence measure how close the predicted and actual event distributions are.}
 \begin{tabular}{|l|l|l|}
 \hline
 \textbf{Category} & \textbf{Metric} & \textbf{Purpose} \\
@@ -573,7 +615,7 @@ Distributional Test & KS Test & Statistical distribution equality \\
 Distributional Test & KL Divergence & Information loss in distributions \\
 \hline
 \end{tabular}
-\caption{Summary of Evaluation Metrics}\label{tb:Evaluation Metrics}
+\label{tb:Evaluation Metrics}
 \end{table}
 
 \subsection{Classification-based Metrics}

@@ -152,21 +152,43 @@ In the Figure~\ref{fig:f_p_f_i} after filtering 2,381 sparks in the data, I can 
 \end{table}
 
 
-\begin{sidewaysfigure}
+% \begin{sidewaysfigure}
+%     \centering
+%     \includegraphics[width=\linewidth]{figures/Prices and Filling Information.png}
+%     \caption{Prices and filling information}
+%     \caption*{\textit{Note:} This plot shows the mid-price from the order book (blue line), trade book filled prices (red line), and spread (yellow shading). Passive trades (green dots) and aggressive trades (red dots) are highlighted. The bottom panel represents the filled volume over time.}
+%     \label{fig:p_f_i}
+% \end{sidewaysfigure}
+
+% \begin{sidewaysfigure}
+%     \centering
+%     \includegraphics[width=\linewidth]{figures/Filtered Prices and Filling Information.png}
+%     \caption{Filtered prices and filling information}
+%     \caption*{\textit{Note:} Similar to Figure~\ref{fig:p_f_i}, but filtering sharp jump points. This plot shows the mid-price from the order book (blue line), trade book filled prices (red line), and spread (yellow shading). Passive trades (green dots) and aggressive trades (red dots) are highlighted. The bottom panel represents the filled volume over time. The price and trade dynamics remain the same.}
+%     \label{fig:f_p_f_i}
+% \end{sidewaysfigure}
+\begin{figure}[p]
     \centering
-    \includegraphics[width=\linewidth]{figures/Prices and Filling Information.png}
-    \caption{Prices and filling information}
-    \caption*{\textit{Note:} This plot shows the mid-price from the order book (blue line), trade book filled prices (red line), and spread (yellow shading). Passive trades (green dots) and aggressive trades (red dots) are highlighted. The bottom panel represents the filled volume over time.}
-    \label{fig:p_f_i}
-\end{sidewaysfigure}
+    \rotatebox{90}{
+        \begin{minipage}{\textheight}
+            \centering
+            \includegraphics[width=\linewidth]{figures/Prices and Filling Information.png}
+            \caption{Prices and filling information}
+            \caption*{\textit{Note:} This plot shows the mid-price from the order book (blue line), trade book filled prices (red line), and spread (yellow shading). Passive trades (green dots) and aggressive trades (red dots) are highlighted. The bottom panel represents the filled volume over time.}
+            \label{fig:p_f_i}
+        \end{minipage}
+    }
+\end{figure}
 
-\begin{sidewaysfigure}
+\begin{figure}[p]
     \centering
-    \includegraphics[width=\linewidth]{figures/Filtered Prices and Filling Information.png}
-    \caption{Filtered prices and filling information}
-    \caption*{\textit{Note:} Similar to Figure~\ref{fig:p_f_i}, but filtering sharp jump points. This plot shows the mid-price from the order book (blue line), trade book filled prices (red line), and spread (yellow shading). Passive trades (green dots) and aggressive trades (red dots) are highlighted. The bottom panel represents the filled volume over time. The price and trade dynamics remain the same.}
-    \label{fig:f_p_f_i}
-\end{sidewaysfigure}
-
-
-
+    \rotatebox{90}{
+        \begin{minipage}{\textheight}
+            \centering
+            \includegraphics[width=\linewidth]{figures/Filtered Prices and Filling Information.png}
+            \caption{Filtered prices and filling information}
+            \caption*{\textit{Note:} Similar to Figure~\ref{fig:p_f_i}, but filtering sharp jump points. This plot shows the mid-price from the order book (blue line), trade book filled prices (red line), and spread (yellow shading). Passive trades (green dots) and aggressive trades (red dots) are highlighted. The bottom panel represents the filled volume over time. The price and trade dynamics remain the same.}
+            \label{fig:f_p_f_i}
+        \end{minipage}
+    }
+\end{figure}
