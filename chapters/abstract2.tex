@@ -1,0 +1,11 @@
+\begin{abstract}
+\noindent 
+This thesis improves backtesting environments for foreign exchange markets by predicting when aggressive trades will occur. The main challenge is that aggressive traders often remove passive orders from the order book during execution, but these actions are difficult to predict. Aggressive trades are rare in the context of the overall order flow, cluster together in time, and depend on market conditions. Current backtesting systems use simple rules to decide when orders get filled, such as fixed probabilities based on bid-ask spreads. These methods do not capture the real dynamics of how trades happen in markets. When backtesting systems cannot predict these aggressive trades, the backtesting results underestimate filling rates and provide misleading performance results.
+
+This study develops a novel framework with two stages to predict aggressive trades. First, an XGBoost filter addresses the extreme class imbalance problem. Second, a neural network captures embedded market features over time and passes the kernel to a Hawkes process, creating a neural Hawkes process. 
+
+Results show that the model successfully captures the temporal dependencies, clustering patterns and statistical distributions of aggressive trades. The framework provides more realistic and dynamic backtesting mechanism compared to traditional methods. The predictive ability of the framework is useful for many market participants and investors to develop better trading strategies and reduce execution costs. The approach can be applied to other high-frequency trading environments where rare events influence future market behavior. \\[1ex]
+%This combination shows how aggressive trades are influenced by market conditions, how they cluster together and influence each other.
+
+\noindent\textbf{Key words: } Aggressive Trade Prediction, Neural Hawkes Process, Limit Order Book, Backtesting, XGBoost, Extreme Class Imbalance, High-Frequency Trading, Foreign Exchange Markets.
+\end{abstract}

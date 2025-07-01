@@ -1,32 +1,30 @@
 \chapter{Data} \label{chapter:preliminary}
-This Chapter presents the data sources, data fetching method, initial description of the raw data, as well as data analysis and visualization methods. For demonstration, I use the dataset includes limit order book data, market trade book data and MN trade book data from 10:00:00 to 15:59:59 on 31st January as examples. The timestamps in the order book and MN trade book are recorded in London time, while those in the market trade book are American time. To ensure orders in order book are consistent with trades in trade book, all of them are converted to Central European Time (CET). As a result, both them represent for trading time between 10:00:00 and 15:59:59 CET. 
+This Chapter presents the data sources, data fetching method, initial description of the raw data, as well as data analysis and visualization methods. For demonstration, I use the dataset includes limit order book data, market trade book data and MN trade book data from 10:00:00 to 15:59:59 on 31st January as examples. The timestamps in the order book and MN trade book are recorded in London time, while those in the market trade book are in American time. To ensure orders in the order book are consistent with trades in the trade book, all of them are converted to Central European Time (CET). As a result, both of them represent trading time between 10:00:00 and 15:59:59 CET. 
 
-In Section~\ref{sec:data-source}, data structures are shown in tables, alongside brief description and data type. Then in Section~\ref{sec:match-order-trade}, I describe how trades in the trade book are matched with the orders in the order book. I build an algorithm to find this match by comparing trade prices and directions with the prices in different levels of the order book. I also classify visible trades into passive and aggressive types based on whether the match happens at the best bid/ask price. 
+In Section~\ref{sec:data-source}, data structures are shown in tables, alongside brief descriptions and data types. Then, in Section~\ref{sec:match-order-trade}, I describe how trades in the trade book are matched with the orders in the order book. I build an algorithm to find this match by comparing trade prices and directions with the prices in different levels of the order book. I also classify visible trades into passive and aggressive types based on whether the match happens at the best bid/ask price. 
 In Section~\ref{sec:price}, I explain the trading activity using the price and filling information from order book and trade book data. 
 
 
 \section{Data Source and Types} \label{sec:data-source}
-The order book dataset consists of foreign exchange (FX) limit order book data provided by LMAX and CBOE, two venues used by MN. Orders from LMAX is more transparent because LMAX is optimized for order-driven market model, while there are more latent orders in CBOE because of the support for anonymous trading. 
+The order book and trade book dataset consists of FX limit order book data provided by exchanges used by MN. 
 
-As can be seen in Table~\ref{tb: order book data description}, the currency type is EUR/USD. The data is detailed in bid/ask prices and volumes at 5 levels in total, where the data of level 1 stand for the best bid/ask. The dataset also calculates the spread between best ask and best bid prices.
+As can be seen in Table~\ref{tb: order book data description}, the currency pair is EUR/USD, which is the most liquid and most heavily traded in the market, and also the main pair traded by MN. The data is detailed in bid/ask prices and volumes at five levels in total, where the data of level 1 stands for the best bid/ask. The dataset also calculates the spread between best ask and best bid prices.
 
-All the order book data is stored in Snowflake, a cloud-based data platform that provides data storage, processing, and analytics as a fully managed service. High-frequency order book data can be accessed using SQL queries, which ensures high availability and completeness of data.
-
-Table~\ref{tb: trade book data description} provides information of trade price, volume, execution time, and order direction in the trade book. Importantly, the order book is significantly larger than the trade book. For a single trading day, the order book can reach around 200,000 KB, while the trade book is typically only about 100 KB.
+Table~\ref{tb: trade book data description} provides information on trade price, volume, execution time, and order direction in the trade book. Importantly, the order book is significantly larger than the trade book. For a single trading day, the order book can reach around 200,000 KB, while the trade book is typically only about 100 KB.
 
 
-\begin{table}[ht]
+\begin{table}[tbp]
     \centering
     \caption{Order Book Data Description}
-    \caption*{\textit{Note:} All the entries in the order book data extracted from Snowflake. The ID is unique for every order. Timestamps are in millisecond. Venue 1 and venue 2 are two venues for FX trading at MN. The currency objective is EUR/USD. The following rows are volumes, price (all five levels) and spread.}
+    \caption*{\textit{Note:} All the entries in the order book data extracted from the cloud database. The ID is unique for every order. Timestamps are in milliseconds. Venue 1 and Venue 2 are two venues for FX trading at MN. The currency objective is EUR/USD. The following rows are volumes, price (all five levels) and spread.}
     \begin{tabular}{lll}
         \toprule
         \textbf{Column} & \textbf{Description} & \textbf{Data Type} \\
         \midrule
         ID & Unique identifier of orders & String \\
-        $T$ & Time of the snapshot in HH:MM.SSS format & String \\
+        $T$ & Time of the snapshot in HH: MM.SSS format & String \\
         VENUE & The exchange (venue 1 or venue 2) & String \\
-        SYMBOL & Currency pair (EUR/USD) & Datetime \\
+        SYMBOL & Currency pair (EUR/USD) & DateTime \\
         $V_A$ & Total volume on the ask side & Integer \\
         $V_B$ & Total volume on the bid side & Integer \\
         $P_A ^ {i}$, $i = 1, \dots, 5$ & Ask prices at different levels & Float \\
@@ -39,15 +37,15 @@ Table~\ref{tb: trade book data description} provides information of trade price,
     \label{tb: order book data description}
 \end{table}
 
-\begin{table}[ht] 
+\begin{table}[tbp] 
     \centering 
     \caption{Trade Book Data Description}
-    \caption*{\textit{Note:} All the entries in the trade book data extracted from Snowflake and exchanges database. Timestamps are in millisecond. Direction includes bid/ask. Prices are the filling price taking place when execution. Volumes are the number of orders traded.}
+    \caption*{\textit{Note:} All the entries in the trade book data extracted from the database of exchanges. Timestamps are in milliseconds. Direction includes bid/ask. Prices are the filling price taking place when execution. Volumes are the number of orders traded.}
     \begin{tabular}{lll} 
         \toprule 
         \textbf{Column} & \textbf{Description} & \textbf{Data Type} \\ 
         \midrule 
-        $T$ & Execution time of the trade (HH:MM:SSS) & String \\
+        $T$ & Execution time of the trade (HH: MM: SSS) & String \\
         DIRECTION & Bid order or ask order & String \\
         PRICE & Execution price of the trade & Float \\ 
         VOLUME & Number of units traded & Integer \\  
@@ -57,9 +55,9 @@ Table~\ref{tb: trade book data description} provides information of trade price,
 \end{table}
 
 \section{Matching Trade Book and Order Book Data} \label{sec:match-order-trade}
-In an order-driven market, trades occur when incoming orders match existing orders in the order book. In the LOB, 'bid' represents buy interest, and 'ask' represents sell interest. When a trade is recorded in the trade book, it has a direction. If the direction is 'bid', it means the buyer placed an order that matched an existing ask order in the order book. In this case, the trade price corresponds to the ask price available in the order book at the time of execution, and the volume of the matched ask order decreases by the traded amount. If the direction is 'ask', it means the seller placed an order that matched an existing bid order in the order book. The trade price in this case corresponds to the bid price available in the order book, and the volume of the matched bid order decreases by the traded amount. The order book is updated after each trade to reflect the reduced volume of the matched order. If an order in the order book is fully consumed, it is removed. If there is remaining volume after a partial match, the order stays in the book with the updated volume. 
+In an order-driven market, trades occur when incoming orders match existing orders in the order book. In the LOB, 'bid' represents buy interest, and 'ask' represents sell interest. When a trade is recorded in the trade book, it has a direction. If the direction is 'bid', it means the buyer placed an order that matched an existing ask order in the order book. In this case, the trade price corresponds to the ask price available in the order book at the time of execution, and the volume of the matched ask order decreases by the traded amount. If the direction is 'ask', it means the seller placed an order that matched an existing bid order in the order book. The trade price, in this case, corresponds to the bid price available in the order book, and the volume of the matched bid order decreases by the traded amount. The order book is updated after each trade to reflect the reduced volume of the matched order. If an order in the order book is fully consumed, it is removed. If there is a remaining volume after a partial match, the order stays in the book with the updated volume. 
 
-An algorithm is developed to find roots of trade book updates in the order book data. This is an important preliminary to see how orders in the order book get filled, which is important in back testing. Also, it is clear to see how many unmatching orders in the order book are. The algorithm for matching orders and trades is in Algorithm~\ref{alg:trade_order_matching}.
+An algorithm is developed to find the roots of trade book updates in the order book data. This is an important preliminary to see how orders in the order book get filled, which is important in backtesting. Also, it is clear to see how many unmatching orders in the order book are. The algorithm for matching orders and trades is in Algorithm~\ref{alg:trade_order_matching}.
 
 \begin{algorithm}
     \caption{Matching Trade Book and Order Book Data}
@@ -76,24 +74,24 @@ An algorithm is developed to find roots of trade book updates in the order book 
                 \State Mark as hidden order
             \Else
                 \State Check if buy trade matches ask or sell trade matches bid
-                \State Record matched price level and traded volume for updates in trade book
-                \State Record filling time and traded volume for updates in order book
+                \State Record matched price level and traded volume for updates in the trade book
+                \State Record filling time and traded volume for updates in the order book
             \EndIf
         \EndFor
     
         \State Define visible orders: trades that match existing limit orders
         \State Define hidden orders: trades with no matching limit order
-        \State Define aggressive orders: visible trades not at best bid/ask
-        \State Define passive orders: visible trades at best bid/ask
+        \State Define aggressive orders: visible trades not at the best bid/ask
+        \State Define passive orders: visible trades at the best bid/ask
     
     \end{algorithmic}
 \end{algorithm}
 
 It starts by loading and filtering data. To identify matching trades, the algorithm checks whether each trade price appears in the five bid/ask levels of the order book. Since order book data stores prices and volumes separately, it is melted into a long format, aligning price levels with corresponding volumes. Then the trade book and order book are then merged into a complete order-trade dataset to accelerate direct comparison.
 
-For each trade, the codes find previous orders in the order book, and check if price and direction match. The bid in the trade book should match the ask in the order book, the ask in the trade book should match the bid in the order book. As the result, If a trade matches an order, it is a visible execution. But if the matching price level is not the best bid or ask, it's identified as a passive submission getting filled by either market movements or aggressive market order. Further classification about these two scenarios will be done later in the chapter 4. If a trade cannot find its root in the order book, it's hidden orders, but I don't really care about this part.
+For each trade, the codes find previous orders in the order book, and check if price and direction match. The bid in the trade book should match the ask in the order book, and the ask in the trade book should match the bid in the order book. As a result, If a trade matches an order, it is a visible execution. But if the matching price level is not the best bid or ask, it's identified as a passive submission getting filled by either market movements or aggressive market orders. If a trade cannot find its root in the order book, it's hidden orders.
 
-As can be seen in the pie chart \ref{fig:p_of_AT_unma}, hidden trades only account for 3.5\%. Most trades are visible, which shows the high data quality from the exchange. Passive submission and neutral submission are both visible trades which I can find in the order book. Half of them are rooted as passive submission, which shows half traders are willing to queue in the order book flow and either wait for market movements or being chosen by aggressive traders. Half of the filling orders are placed in best bid/ask, meaning they prefer to be on top to get filled. This aligns with our trading strategies because most of our orders are placed passively or neutrally. I need to do modeling to predict how these orders get filled in the order flow. The second pie chart in Figure~\ref{fig:p_of_AT_unma} also confirms a common sense that 99\% of the orders in the order book cannot find their right trade and end in cancellation \citep{gould_limit_2013}. This phenomenon implies a potential extreme imbalance between aggressive and non-aggressive trades in the context of the overall order flow, which should be carefully considered when modeling trading patterns.
+As can be seen in the pie chart \ref{fig:p_of_AT_unma}, hidden trades only account for 3.5\%. Most trades are visible, which shows the high data quality from the exchange. Passive submission and neutral submission are both visible trades, which I can find in the order book. Half of them are rooted as passive submission, which shows half of traders are willing to queue in the order book flow and either wait for market movements or being chosen by aggressive traders. Half of the filling orders are placed in best bid/ask, meaning they prefer to be on top to get filled. This aligns with our trading strategies because most of our orders are placed passively or neutrally. I need to do modeling to predict how these orders get filled in the order flow. The second pie chart in Figure~\ref{fig:p_of_AT_unma} also confirms a common sense that 99\% of the orders in the order book cannot find their right trade and end in cancellation \citep{gould_limit_2013}. This phenomenon implies a potential extreme imbalance between aggressive and non-aggressive trades in the context of the overall order flow, which should be carefully considered when modeling trading patterns.
 
 \begin{figure}[h]
     \centering
@@ -105,7 +103,7 @@ As can be seen in the pie chart \ref{fig:p_of_AT_unma}, hidden trades only accou
 
 
 \section{Prices and Filling Information} \label{sec:price}
-To have a comprehensive understanding of how trades in trade book correspond to orders in order book, Figure~\ref{fig:p_f_i} provides an overview of the whole active trading hours from 10 am to 4 pm on 31st January. This date is chosen for demonstration, and the time window is the active trading time range during the day. This plot shows how filled price in the trade book track the mid-price in the order book, the distribution of passive and aggressive trades, and the spread range for each trade (not each order). The lower subplot presents the filled volume for each trading record.
+To have a comprehensive understanding of how trades in the trade book correspond to orders in the order book, Figure~\ref{fig:p_f_i} provides an overview of the whole active trading hours from 10 am to 4 pm on 31st January. This date is chosen for demonstration, and the time window is the active trading time range during the day. This plot shows how the filled price in the trade book tracks the mid-price in the order book, the distribution of passive and aggressive trades, and the spread range for each trade (not each order). The lower subplot presents the filled volume for each trading record.
 
 % \begin{figure}[ht]
 %     \centering
@@ -115,16 +113,18 @@ To have a comprehensive understanding of how trades in trade book correspond to 
 % \end{figure}
 
 
-As can be seen in Figure~\ref{fig:p_f_i}, the mid-price has the highest point between 14:00 and 15:00. The filled price fits the mid-price well. I can see there are a lot of red dots which shows that they are aggressive trades. I did not classify bid or ask side because it's not the research target in the thesis. These aggressive trades go outside the spread range. The size of dots stands for relative volume of the trades. In other words, when the volume is large compared to other timestamps, the size of the dot will be larger. Therefore, I can easily see the active trading time point in the plot. Moreover, red dots represent aggressive trades in the trade book. I can see the red dots are more than green ones, which indicates that a lot of orders get filled by aggressive traders taking out them of the order book, instead of passively waiting for the market movements. This aligns with our need to improve the backtesting environment by predicting aggressive trades across the order book. Specially, there are several sparks in the trend of mid-price in the order book. Their frequent appearance in the plot suggests a systematic market behavior rather than random noise. These are caused by sudden jump in the best bid/ask price. As can be seen, most of them are downside sparks, which indicates that it seems the ask stays relatively stable while the bid collapses. This could be the reason that leads to sharp drops in mid-price.
+As can be seen in Figure~\ref{fig:p_f_i}, the mid-price has the highest point between 14:00 and 15:00. The filled price fits the mid-price well. I can see there are a lot of red dots which shows that they are aggressive trades. I did not classify the bid or ask side because it's not the research target in the thesis. These aggressive trades go outside the spread range. The size of dots stands for the relative volume of the trades. In other words, when the volume is large compared to other timestamps, the size of the dot will be larger. Therefore, I can easily see the active trading time point in the plot. Moreover, red dots represent aggressive trades in the trade book. I can see the red dots are more than green ones, which indicates that a lot of orders get filled by aggressive traders taking out them of the order book, instead of passively waiting for the market movements. This aligns with our need to improve the backtesting environment by predicting aggressive trades across the order book. There are several sparks in the trend of mid-price in the order book. Their frequent appearance in the plot suggests a systematic market behavior rather than random noise. These are caused by the sudden jump in the best bid/ask price. As can be seen, most of them are downside sparks, which indicates that it seems the ask stays relatively stable while the bid collapses. This could be the reason that leads to sharp drops in mid-price.
 
-From the bottom panel, in the beginning of 10:00, 15:45, 14:11, there are high volume up to 2,000,000, which are higher than common volume 1,000,000. At 13:45, the highest trading volume occurs as 3,000,000. Combined the two plots together, I can see when there's a drop, it's often accompanied by many trading records or large trades. 
+From the bottom panel, at the beginning of 10:00, 15:45 and 14:11, there are high volumes of up to 2,000,000, which are higher than the common volume of 1,000,000. At 13:45, the highest trading volume occurs at 3,000,000. Combining the two plots together, I can see when there is a drop, it is often accompanied by many trading records or large trades. 
 
-In the Figure~\ref{fig:f_p_f_i} after filtering 2,381 sparks in the data, I can clearly see the price trends and some clustering for aggressive trades. For example, Table~\ref{tab:trade_sample} shows in the beginning of 10:00, many aggressive trades gather here. It may because there is a sharp dropping movement in the market, which triggers a wave of aggressive sell orders that consume the top levels of the bid side. This sudden removal of liquidity causes the mid-price to drop quickly, and encourages further aggressive selling or stop-loss execution.  
+In Figure~\ref{fig:f_p_f_i}, after filtering 2,381 sparks in the data, I can clearly see the price trends and some clustering for aggressive trades. For example, Table~\ref{tab:trade_sample} shows that at the beginning of 10:00, many aggressive trades gather here. It may be because there is a sharp dropping movement in the market, which triggers a wave of aggressive sell orders that consume the top levels of the bid side. This sudden removal of liquidity causes the mid-price to drop quickly, and encourages further aggressive selling or stop-loss execution.  
 
-\begin{table}[htbp]
+In conclusion, the data used in this thesis is suitable for both training the model and achieving the research goal of predicting aggressive trades. The data quality is good, with rich and detailed limit order book and trade information sampled at the millisecond level. There is enough data available to train machine learning models and perform robust evaluation. One challenge is the extreme class imbalance, since aggressive trades are rare compared to the total number of order book updates. However, this issue is handled with sampling techniques during training.
+
+\begin{table}[tbp]
 \centering
 \caption{Sample of Trades and Order Book Information} 
-\caption*{\textit{Note:} First 48 lines of the prices and filling information dataset, with 37 lines are hidden for simplification. Timestamps are in millisecond. $\bar{\alpha}$ indicates the trade is aggressive (1), passive (0) or no-trade (NaN). The hidden lines are all with NaN $\bar{\alpha}$. From the current data, several values of $\bar{\alpha}$ are 1 and only one is 0. This difference shows the importance of accurately predicting aggressive trades among all trade types. FPRICE and FVOLUME are filling prices and volumes respectively when trades happen. The spread and mid-price show volatility and variation over time. These patterns will be captured and used as features in the following sections.}
+\caption*{\textit{Note:} First 48 lines of the prices and filling information dataset, with 37 lines are hidden for simplification. Timestamps are in milliseconds. $\bar{\alpha}$ indicates the trade is aggressive (1), passive (0) or no-trade (NaN). The hidden lines are all with NaN $\bar{\alpha}$. From the current data, several values of $\bar{\alpha}$ are 1 and only one is 0. This difference shows the importance of accurately predicting aggressive trades among all trade types. FPRICE and FVOLUME are filling prices and volumes, respectively, when trades happen. The spread and mid-price show volatility and variation over time. These patterns will be captured and used as features in the following sections.}
 \small
     \begin{tabular}{l>{\raggedright\arraybackslash}p{3.3cm}cccccc}
     \toprule
@@ -167,10 +167,10 @@ In the Figure~\ref{fig:f_p_f_i} after filtering 2,381 sparks in the data, I can 
 %     \caption*{\textit{Note:} Similar to Figure~\ref{fig:p_f_i}, but filtering sharp jump points. This plot shows the mid-price from the order book (blue line), trade book filled prices (red line), and spread (yellow shading). Passive trades (green dots) and aggressive trades (red dots) are highlighted. The bottom panel represents the filled volume over time. The price and trade dynamics remain the same.}
 %     \label{fig:f_p_f_i}
 % \end{sidewaysfigure}
-\begin{figure}[p]
+\begin{figure}[tbp]
     \centering
     \rotatebox{90}{
-        \begin{minipage}{\textheight}
+        \begin{minipage}{0.9\textheight}
             \centering
             \includegraphics[width=\linewidth]{figures/Prices and Filling Information.png}
             \caption{Prices and filling information}
@@ -180,10 +180,10 @@ In the Figure~\ref{fig:f_p_f_i} after filtering 2,381 sparks in the data, I can 
     }
 \end{figure}
 
-\begin{figure}[p]
+\begin{figure}[tbp]
     \centering
     \rotatebox{90}{
-        \begin{minipage}{\textheight}
+        \begin{minipage}{0.9\textheight}
             \centering
             \includegraphics[width=\linewidth]{figures/Filtered Prices and Filling Information.png}
             \caption{Filtered prices and filling information}
